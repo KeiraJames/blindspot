@@ -1,0 +1,16 @@
+node_modules
+dist
+coverage
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+functions/lib
+functions/node_modules
+.firebase
+ios/App/Pods
+ios/App/build
+ios/DerivedData
+xcuserdata
+*.xcuserstate
