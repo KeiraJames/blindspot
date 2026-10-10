@@ -1,0 +1,14 @@
+{
+  "name": "pathsense-native",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PathSense iOS plugins: RoomPlan scanning, ARKit navigation, Core Haptics, Vision, speech, Sign in with Apple.",
+  "main": "index.js",
+  "files": ["ios/Sources", "Package.swift", "index.js"],
+  "capacitor": {
+    "ios": { "src": "ios" }
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  }
+}

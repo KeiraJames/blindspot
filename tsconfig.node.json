@@ -10,5 +10,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "capacitor.config.ts", "eslint.config.js"]
+  "include": ["vite.config.ts", "vitest.rules.config.ts", "capacitor.config.ts", "eslint.config.js", "tests"]
 }

@@ -1,0 +1,20 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "versions",
+      "fieldPath": "graphJson",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "draft",
+      "fieldPath": "graphJson",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "scans",
+      "fieldPath": "resultJson",
+      "indexes": []
+    }
+  ]
+}

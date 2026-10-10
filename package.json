@@ -13,7 +13,9 @@
     "format": "prettier --write .",
     "typecheck": "tsc -b --noEmit",
     "ios:sync": "npm run build && cap sync ios",
-    "ios:open": "cap open ios"
+    "ios:open": "cap open ios",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-pathsense \"vitest run -c vitest.rules.config.ts\"",
+    "functions:build": "npm --prefix functions run build"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.2",
@@ -24,6 +26,7 @@
     "@capacitor/preferences": "^8.0.1",
     "@tanstack/react-query": "^5.104.1",
     "firebase": "^13.0.0",
+    "pathsense-native": "file:native/pathsense-native",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router-dom": "^7.18.4",
@@ -33,6 +36,7 @@
   "devDependencies": {
     "@capacitor/cli": "^8.5.3",
     "@eslint/js": "^9.39.5",
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",

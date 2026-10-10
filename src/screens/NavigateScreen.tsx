@@ -405,7 +405,7 @@ function SimPanel({ sim, onChange }: { sim: WalkSimulator; onChange: () => void 
   };
   return (
     <section data-no-gesture aria-label="Walk simulator" className="mx-3 mb-2 rounded-2xl border border-warn p-2 bg-bg/90 flex flex-wrap gap-2 items-center">
-      <span className="text-warn text-sm font-semibold w-full">Walk simulator (no ARKit). Arrow keys move.</span>
+      <span className="text-warn text-sm font-semibold w-full">Walk simulator: ARKit isn't available here.{' '}<span className="hidden md:inline">Arrow keys also move.</span></span>
       <Button onClick={() => toggle('autopilot')} aria-pressed={sim.autopilot}>
         {sim.autopilot ? 'Stop walking' : 'Auto-walk'}
       </Button>
