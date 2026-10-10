@@ -58,6 +58,14 @@ export class WalkSimulator {
     });
   }
 
+  setAutopilot(on: boolean) {
+    this.autopilot = on;
+  }
+
+  setWander(on: boolean) {
+    this.wander = on;
+  }
+
   step(meters: number) {
     const h = this.pose.heading;
     this.move({ x: this.pose.position.x + Math.cos(h) * meters, y: this.pose.position.y + Math.sin(h) * meters });

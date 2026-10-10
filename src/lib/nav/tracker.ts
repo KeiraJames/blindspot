@@ -231,14 +231,23 @@ export class RouteTracker {
         this.announcedManeuver.add(k);
         this.announcedApproach.add(k);
         out.push({ type: 'maneuver', step: next });
-      } else if (away <= this.config.approachDistance && !this.announcedApproach.has(k) && away > this.config.maneuverDistance + 1) {
+      } else if (
+        away <= this.config.approachDistance &&
+        !this.announcedApproach.has(k) &&
+        away > this.config.maneuverDistance + 1 &&
+        // Skip when the previous prompt's "then walk N meters" already covered this stretch.
+        this.stepDistance(next) - this.previousStepDistance(k) > this.config.approachDistance
+      ) {
         this.announcedApproach.add(k);
         out.push({ type: 'approach', step: next, metersAway: away });
       }
     }
 
-    // Heading guidance toward a look-ahead point.
-    const target = this.lookAheadPoint(this.config.lookAhead);
+    // Heading guidance toward a look-ahead point. Near a turn the look-ahead wraps around
+    // the corner, so drift corrections pause until the maneuver has been announced.
+    const upcoming = this.nextStep();
+    const nearTurn = upcoming !== undefined && upcoming.kind !== 'arrive' && this.stepDistance(upcoming) - this.progress < this.config.lookAhead + this.config.maneuverDistance;
+    const target = nearTurn ? null : this.lookAheadPoint(this.config.lookAhead);
     if (target && dist(pose.position, target) > 0.5) {
       const err = turnAngle(pose.heading, bearing(pose.position, target));
       if (Math.abs(err) > this.config.veerThreshold) {
@@ -256,6 +265,14 @@ export class RouteTracker {
       }
     }
     return out;
+  }
+
+  private previousStepDistance(k: number): number {
+    for (let i = k - 1; i >= 0; i--) {
+      const s = this.steps[i]!;
+      if (s.kind !== 'arrive') return this.stepDistance(s);
+    }
+    return 0;
   }
 
   private markManeuversUpTo(nodeIndex: number) {

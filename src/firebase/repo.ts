@@ -50,6 +50,8 @@ export interface MapRepository {
   createMap(input: { name: string; description?: string; orgId?: string | null; graph?: MapGraph }): Promise<string>;
   renameMap(mapId: string, name: string, description?: string): Promise<void>;
   deleteMap(mapId: string): Promise<void>;
+  /** Move a map into (or out of) an organization. Owner only. */
+  setMapOrg(mapId: string, orgId: string | null): Promise<void>;
 
   getDraft(mapId: string): Promise<MapGraph | null>;
   saveDraft(mapId: string, graph: MapGraph): Promise<void>;

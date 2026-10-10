@@ -103,3 +103,38 @@ describe('RouteTracker', () => {
     expect(tracker.update(pose({ x: 0, y: 0.2 }, Math.PI / 2, 'g', 200))[0]).toEqual({ type: 'tracking_restored' });
   });
 });
+
+describe('prompt redundancy', () => {
+  it('does not announce an approach already covered by the previous "then walk" prompt', () => {
+    const { tracker } = setup('g-entrance', 'f1-202');
+    const events = walk(tracker);
+    const approaches = events.filter((e): e is Extract<TrackerEvent, { type: 'approach' }> => e.type === 'approach');
+    for (const a of approaches) {
+      const k = tracker.steps.indexOf(a.step);
+      const prev = tracker.steps.slice(0, k).reverse().find((s) => s.kind !== 'arrive')!;
+      expect(prev.distanceAfter).toBeGreaterThan(8);
+    }
+    expect(approaches.some((a) => a.step.kind === 'arrive')).toBe(false);
+  });
+});
+
+describe('veer suppression', () => {
+  it('does not report veering while following the route through corners', () => {
+    const { tracker } = setup('g-entrance', 'f1-202');
+    // Walk with the heading pointing at the next node (like a person turning early at a corner).
+    const events: TrackerEvent[] = [];
+    let t = 0;
+    for (const seg of tracker.segments) {
+      if (seg.vertical) {
+        events.push(...tracker.update(pose(seg.b, 0, seg.floorId, (t += 200))));
+        continue;
+      }
+      const n = Math.max(1, Math.ceil(seg.length / 0.24));
+      for (let k = 1; k <= n; k++) {
+        const p = { x: seg.a.x + ((seg.b.x - seg.a.x) * k) / n, y: seg.a.y + ((seg.b.y - seg.a.y) * k) / n };
+        events.push(...tracker.update(pose(p, bearing(seg.a, seg.b), seg.floorId, (t += 200))));
+      }
+    }
+    expect(events.filter((e) => e.type === 'veer')).toEqual([]);
+  });
+});

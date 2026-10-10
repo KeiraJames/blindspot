@@ -120,6 +120,10 @@ export class FirebaseMapRepository implements MapRepository {
     await batch.commit();
   }
 
+  async setMapOrg(mapId: string, orgId: string | null) {
+    await updateDoc(doc(this.fb.db, 'maps', mapId), { orgId, updatedAt: serverTimestamp() });
+  }
+
   async getDraft(mapId: string) {
     const snap = await getDoc(doc(this.fb.db, 'maps', mapId, 'draft', 'current'));
     if (snap.exists()) return JSON.parse(snap.data().graphJson as string) as MapGraph;

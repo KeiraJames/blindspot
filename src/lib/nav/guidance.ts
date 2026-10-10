@@ -65,8 +65,8 @@ export interface RouteStep {
   floorChange?: { via: Extract<EdgeKind, 'stairs' | 'elevator' | 'ramp'>; direction: 'up' | 'down'; floors: number; toFloorName: string };
   /** Meters to walk after this maneuver until the next one. */
   distanceAfter: number;
-  /** Doors and named places passed during the walk after this maneuver. */
-  landmarks: string[];
+  /** Doors passed during the walk after this maneuver. `through` = a doorway joining two rooms. */
+  landmarks: { label: string; through: boolean }[];
   /** Label of the place reached at the end of this step's walk. */
   towardLabel: string;
 }
@@ -116,7 +116,8 @@ export function buildSteps(index: GraphIndex, route: Route): RouteStep[] {
     }
 
     current.distanceAfter += edge.length;
-    if (edge.kind === 'door' || (b.kind === 'door' && i + 1 < ids.length - 1)) current.landmarks.push(b.label);
+    // Doors passed along the way are landmarks; the destination itself is not.
+    if (b.kind === 'door' && i + 1 < ids.length - 1) current.landmarks.push({ label: b.label, through: (b.roomIds?.length ?? 0) >= 2 });
 
     if (i + 1 === ids.length - 1) {
       current.towardLabel = b.label;
@@ -130,7 +131,7 @@ export function buildSteps(index: GraphIndex, route: Route): RouteStep[] {
     if (turn !== 'straight') {
       current.towardLabel = b.label;
       // Remove the decision node itself from the landmark list; it's where we turn.
-      current.landmarks = current.landmarks.filter((l) => l !== b.label);
+      current.landmarks = current.landmarks.filter((l) => l.label !== b.label);
       current = open('turn', i + 1, { turn });
     }
   }
@@ -148,9 +149,10 @@ export interface PhraseOptions {
 function walkClause(step: RouteStep, opts: PhraseOptions): string {
   if (step.distanceAfter <= 0) return '';
   const d = formatDistance(step.distanceAfter, opts.unit, opts.stepLength);
-  const through = step.landmarks.length > 0 ? ` through ${step.landmarks[0]}` : '';
+  const lm = step.landmarks.find((l) => l.through) ?? step.landmarks[0];
+  const via = lm ? ` ${lm.through ? 'through' : 'past'} ${lm.label}` : '';
   const toward = step.towardLabel ? ` to ${step.towardLabel}` : '';
-  return `walk ${d}${through}${toward}`;
+  return `walk ${d}${via}${toward}`;
 }
 
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

@@ -140,6 +140,11 @@ export class NavigationController {
     if (this.state.destinationId) this.planRoute();
   }
 
+  clearStart() {
+    this.tracker = null;
+    this.set({ startId: null, phase: 'choose_start', route: null, steps: [] });
+  }
+
   /** Called when ARKit relocalizes: the start is the nearest node to where the user stands. */
   setStartFromPose(pose: MapPose) {
     const id = nearestNode(this.index, pose.floorId, pose.position);
@@ -318,9 +323,13 @@ export class NavigationController {
       case 'off_route':
         this.reroute(pose);
         break;
-      case 'floor_reached':
-        this.cue('confirm', `Now on ${this.index.floors.get(e.floorId)?.name ?? 'a new floor'}.`);
+      case 'floor_reached': {
+        // Speak the walk that follows the stairs/elevator; it has no maneuver of its own.
+        const cont = this.state.steps.find((s) => s.kind === 'continue' && this.index.node(s.nodeId).floorId === e.floorId);
+        const next = cont ? ` ${stepText(cont, p)}` : '';
+        this.cue('confirm', `Now on ${this.index.floors.get(e.floorId)?.name ?? 'a new floor'}.${next}`);
         break;
+      }
       case 'tracking_lost':
         this.cue('trackingLost', 'Tracking lost. Stand still and slowly move the phone side to side.', 'high');
         break;

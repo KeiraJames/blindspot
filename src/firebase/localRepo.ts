@@ -80,6 +80,9 @@ export class LocalMapRepository implements MapRepository {
   async deleteMap(mapId: string) {
     await idb.del('maps', mapId);
   }
+  async setMapOrg(): Promise<void> {
+    unsupported('Organizations');
+  }
   async getDraft(mapId: string) {
     return (await this.read(mapId))?.draft ?? null;
   }
