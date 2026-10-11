@@ -21,6 +21,8 @@ export interface Settings {
   stepLength: number;
   /** Speak a warning when the phone detects an obstacle or person ahead. */
   obstacleAlerts: boolean;
+  /** Talk with the app: it listens after asking, and a mic sits in every header. */
+  voiceCompanion: boolean;
   highContrast: boolean;
   /** Which practice map to use before you've scanned your own rooms. */
   sample: SampleId;
@@ -38,6 +40,7 @@ const DEFAULTS = {
   units: 'meters' as DistanceUnit,
   stepLength: 0.7,
   obstacleAlerts: true,
+  voiceCompanion: true,
   highContrast: false,
   sample: 'hall' as SampleId,
 };
@@ -76,6 +79,7 @@ export const useSettings = create<Settings>()(
           ...(typeof o.vibration === 'boolean' ? { vibration: o.vibration } : {}),
           ...(typeof o.sounds === 'boolean' ? { sounds: o.sounds } : {}),
           ...(typeof o.obstacleAlerts === 'boolean' ? { obstacleAlerts: o.obstacleAlerts } : {}),
+          ...(typeof o.voiceCompanion === 'boolean' ? { voiceCompanion: o.voiceCompanion } : {}),
         } as Settings;
       },
     },

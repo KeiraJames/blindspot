@@ -98,6 +98,8 @@ export async function ask(
   prompt: string,
   contextualStrings: string[] = [],
   timeoutMs = 8000,
+  /** Checked after speaking: false skips listening (the person stopped the conversation). */
+  stillWanted: () => boolean = () => true,
 ): Promise<string> {
   if (prompt) {
     voice.stop();
@@ -106,6 +108,7 @@ export async function ask(
     // Let whatever the app is already saying finish, then listen.
     await voice.whenIdle();
   }
+  if (!stillWanted()) return '';
   // Mic open: a rising tone and a soft buzz mean "your turn".
   void cue('listening');
   voice.hold();

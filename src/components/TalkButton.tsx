@@ -1,13 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { isVoiceOverRunning, stopListening } from '../lib/feedback';
+import { isVoiceOverRunning } from '../lib/feedback';
 import {
   registerScreenVoice,
   setNavigator,
+  stopTalking,
   talk,
   useAssistant,
   type ScreenVoice,
 } from '../lib/voice/assistant';
+import { useSettings } from '../state/settings';
 import { PixelArt } from './PixelArt';
 import { cx } from './ui';
 
@@ -37,11 +39,12 @@ export function ListeningEdge() {
 /** Small mic button for headers: press it and say what you want to do. */
 export function TalkButton({ className }: { className?: string }) {
   const { listening, hideButton } = useAssistant();
-  if (hideButton) return null;
+  const enabled = useSettings((s) => s.voiceCompanion);
+  if (hideButton || !enabled) return null;
   return (
     <button
       type="button"
-      onClick={() => (listening ? stopListening() : void talk(''))}
+      onClick={() => (listening ? stopTalking() : void talk(''))}
       aria-label={listening ? 'Stop listening' : 'Talk. Say what you want to do.'}
       aria-pressed={listening}
       className={cx(
@@ -79,5 +82,8 @@ export function useScreenVoice(v: ScreenVoice, hideButton = false) {
   }, [hideButton]);
 }
 
-/** Voice-first unless VoiceOver is reading the screen (its speech would be picked up). */
-export const canAutoListen = () => !isVoiceOverRunning();
+/**
+ * Listen without a press only when talking is on and VoiceOver isn't reading the screen (its
+ * speech would be picked up). Otherwise the app just speaks, like a screen reader app.
+ */
+export const canAutoListen = () => useSettings.getState().voiceCompanion && !isVoiceOverRunning();

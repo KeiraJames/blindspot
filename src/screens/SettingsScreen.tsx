@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { Screen } from '../components/Screen';
 import { Button, Card, Select, Slider, Toggle } from '../components/ui';
 import { cue, say, voice } from '../lib/feedback';
+import { stopTalking } from '../lib/voice/assistant';
 import type { DistanceUnit } from '../lib/nav/units';
 import {
   ELEVEN_VOICES,
@@ -109,6 +110,20 @@ export default function SettingsScreen() {
           onChange={(v) => {
             s.set({ vibration: v });
             if (v) void cue('confirm');
+          }}
+        />
+        <Toggle
+          label="Talk with BlindSpöt"
+          description="It listens after it asks you something. Off: it only speaks, and works like a screen reader app."
+          checked={s.voiceCompanion}
+          onChange={(v) => {
+            s.set({ voiceCompanion: v });
+            if (!v) stopTalking();
+            void say(
+              v
+                ? "Okay. I'll listen after I ask you something."
+                : "Okay. I won't listen unless you press a mic button.",
+            );
           }}
         />
         <Toggle

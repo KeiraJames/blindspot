@@ -86,7 +86,8 @@ export default function ScanScreen() {
   const askName = (r: ScanResult, intro = '') => {
     const sign = signText(r);
     const hint = sign ? ` I saw a sign that says ${sign}.` : '';
-    void talk(`${intro}What is this room called?${hint}`);
+    if (canAutoListen()) void talk(`${intro}What is this room called?${hint}`);
+    else void say(`${intro}What is this room called?${hint} Type the name, or press Say the name.`);
   };
 
   /**

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useSettings } from '../../state/settings';
-import { ask, say, voice } from '../feedback';
+import { ask, say, stopListening, voice } from '../feedback';
 
 /**
  * The voice companion: one place that listens and decides what to do with what was said.
@@ -171,6 +171,13 @@ export function handleUtterance(heard: string): Reply {
 
 const FOLLOW_UPS = 2;
 let busy = false;
+let cancelled = false;
+
+/** End the conversation now: stop listening and don't ask anything else. */
+export function stopTalking() {
+  cancelled = true;
+  stopListening();
+}
 
 /**
  * Listen and act, as a conversation: ask `prompt` (or just listen once the app has finished
@@ -179,6 +186,7 @@ let busy = false;
 export async function talk(prompt = ''): Promise<void> {
   if (busy) return;
   busy = true;
+  cancelled = false;
   useAssistant.setState({ listening: true });
   try {
     let question = prompt;
@@ -186,7 +194,13 @@ export async function talk(prompt = ''): Promise<void> {
     let silences = 0;
     for (;;) {
       const hints = screens.at(-1)?.hints ?? [];
-      const heard = await ask(question, [...hints, 'go back', 'look around', 'take me to']);
+      const heard = await ask(
+        question,
+        [...hints, 'go back', 'look around', 'take me to'],
+        undefined,
+        () => !cancelled,
+      );
+      if (cancelled) break;
       if (heard) lastSpokeAt = Date.now();
       const reply = handleUtterance(heard);
       if (typeof reply !== 'string') break;
@@ -209,11 +223,12 @@ export async function talk(prompt = ''): Promise<void> {
 
 /** Keep talking only if the person is already talking with the app by voice. */
 export function continueConversation(prompt = '') {
-  if (inConversation()) void talk(prompt);
+  if (useSettings.getState().voiceCompanion && inConversation()) void talk(prompt);
 }
 
 /** Start a conversation without a press (e.g. the first time the app opens). */
 export function startConversation(prompt: string) {
+  if (!useSettings.getState().voiceCompanion) return void say(prompt);
   lastSpokeAt = Date.now();
   void talk(prompt);
 }

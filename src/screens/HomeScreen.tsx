@@ -28,7 +28,7 @@ export function HomeScreen() {
       );
     else
       void announce(
-        `BlindSpöt. ${status} Choose Go somewhere, Look around, Add a room, My rooms, Settings, or How to use. Or press the mic and say what you want.`,
+        `BlindSpöt. ${status} Choose Go somewhere, Look around, Add a room, My rooms, Settings, or How to use.${useSettings.getState().voiceCompanion ? ' Or press the mic and say what you want.' : ''}`,
       );
   }, [status, ready]);
 

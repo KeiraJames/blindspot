@@ -6,11 +6,12 @@ import { NavMap } from '../components/NavMap';
 import { PixelArt, spriteFor } from '../components/PixelArt';
 import { Screen } from '../components/Screen';
 import { Button, Card, cx, ErrorBox, Field } from '../components/ui';
-import { announce, cue, say, stopListening, voice } from '../lib/feedback';
+import { announce, cue, say, voice } from '../lib/feedback';
 import { canAutoListen, useScreenVoice } from '../components/TalkButton';
 import {
   inConversation,
   parseAppCommand,
+  stopTalking,
   takePendingPlace,
   talk,
   useAssistant,
@@ -127,7 +128,10 @@ function Navigator({
         ? `${missed}Let's go somewhere.${map} Stand at the entrance, facing into the hall, and say Entrance. Which room are you in?`
         : `${missed}Let's go somewhere.${map} Which room are you in? You can say ${roomList}.`;
     if (canAutoListen() && inConversation()) void talk(target ? '' : question);
-    else void announce(`${target ? '' : question} Press the mic to answer, or pick from the list.`);
+    else
+      void announce(
+        `${target ? '' : question} ${settings.voiceCompanion ? 'Press the mic to answer, or pick' : 'Pick it'} from the list.`,
+      );
   }, [controller]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopPoseSources = useCallback(async () => {
@@ -444,7 +448,7 @@ function Navigator({
           <Button
             className="px-2"
             variant="primary"
-            onClick={() => (listening ? stopListening() : void talk(''))}
+            onClick={() => (listening ? stopTalking() : void talk(''))}
           >
             {listening ? 'Stop' : 'Talk'}
           </Button>
