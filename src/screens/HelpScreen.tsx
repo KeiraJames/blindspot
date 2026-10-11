@@ -119,7 +119,7 @@ const read = (s: (typeof SECTIONS)[number]) => `${s.title} ${s.lines.join(' ')}`
 
 export default function HelpScreen() {
   useEffect(() => {
-    void announce('How to use PathSense. Press Listen on any part to hear it, or Listen to everything.');
+    void announce('How to use BlindSpöt. Press Listen on any part to hear it, or Listen to everything.');
   }, []);
   return (
     <Screen title="How to use" back="/">

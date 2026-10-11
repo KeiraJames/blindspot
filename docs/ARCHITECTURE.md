@@ -1,6 +1,6 @@
 # Architecture
 
-PathSense is a React app running in a WKWebView inside an iOS-only Capacitor shell. The interface is web; LiDAR scanning, AR tracking, vibration, on-device vision and speech are native Swift plugins (`native/pathsense-native`, a Swift package that `cap sync` registers automatically).
+BlindSpöt is a React app running in a WKWebView inside an iOS-only Capacitor shell. The interface is web; LiDAR scanning, AR tracking, vibration, on-device vision and speech are native Swift plugins (`native/pathsense-native`, a Swift package that `cap sync` registers automatically).
 
 ## Scope
 

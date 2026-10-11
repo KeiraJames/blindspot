@@ -52,10 +52,13 @@ export const useSettings = create<Settings>()(
     {
       name: 'pathsense.settings',
       storage: createJSONStorage(() => preferencesStorage),
-      version: 4,
+      version: 5,
       // Earlier versions had many more options; keep only what still exists.
-      migrate: (old) => {
+      migrate: (old, from) => {
         const o = (old ?? {}) as Record<string, unknown>;
+        // Builds without an ElevenLabs key saved the iPhone voice as the default, and it stuck
+        // after a key was added. Give the natural voice one fresh start.
+        if (from < 5 && o.voice === 'iphone' && elevenLabsConfigured) delete o.voice;
         return {
           ...DEFAULTS,
           safetyAcknowledged: Boolean(o.safetyAcknowledged),

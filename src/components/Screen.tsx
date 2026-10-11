@@ -24,7 +24,7 @@ export function Screen({
   const h1 = useRef<HTMLHeadingElement>(null);
   const navigate = useNavigate();
   useEffect(() => {
-    document.title = `${title} · PathSense`;
+    document.title = `${title} · BlindSpöt`;
     h1.current?.focus();
   }, [title]);
   return (

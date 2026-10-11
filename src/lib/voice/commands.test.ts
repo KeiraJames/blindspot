@@ -54,5 +54,7 @@ describe('cleanTranscript', () => {
     ["it's the living room", 'Living Room'],
     ['call it guest bedroom', 'Guest Bedroom'],
     ['  bathroom  ', 'Bathroom'],
+    ['um, the kitchen', 'Kitchen'],
+    ['uh okay living room', 'Living Room'],
   ])('%s → %s', (a, b) => expect(cleanTranscript(a)).toBe(b));
 });

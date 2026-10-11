@@ -1,5 +1,5 @@
 import { Speech } from '../../plugins/speech';
-import { elevenLabsReady, getClip } from './elevenlabs';
+import { elevenLabsReady, getClip, reportPlaybackError } from './elevenlabs';
 
 export type Priority = 'low' | 'normal' | 'high';
 
@@ -9,6 +9,9 @@ export interface VoiceSettings {
   /** ElevenLabs voice id, or 'iphone' for the built-in iOS voice only. */
   voice: string;
 }
+
+/** How names are said out loud: the written name has an umlaut the voices stumble over. */
+export const pronounce = (text: string) => text.replace(/BlindSp[öo]t/g, 'Blind Spot');
 
 interface Utterance {
   text: string;
@@ -23,12 +26,16 @@ interface Utterance {
  * With the natural voice on, each prompt is played from ElevenLabs (cached on the phone). If a
  * clip isn't ready quickly — offline, slow network, no key — the built-in iOS voice speaks
  * instead, so a direction is never late or dropped.
+ *
+ * While the person is talking (`hold`), the guide waits: queued prompts play once they've
+ * finished, so it never talks over them. Only high-priority safety prompts break through.
  */
 export class VoiceGuide {
   private queue: Utterance[] = [];
   private speaking: Utterance | null = null;
   private audio: HTMLAudioElement | null = null;
   private lastSpoken = '';
+  private held = false;
   /** How long to wait for an ElevenLabs clip before using the built-in voice. */
   latencyBudgetMs = 1500;
 
@@ -40,6 +47,16 @@ export class VoiceGuide {
 
   get last(): string {
     return this.lastSpoken;
+  }
+
+  /** Don't start new prompts (except safety ones) until `release`. */
+  hold() {
+    this.held = true;
+  }
+
+  release() {
+    this.held = false;
+    void this.pump();
   }
 
   get busy(): boolean {
@@ -66,7 +83,7 @@ export class VoiceGuide {
   /** Start fetching clips for prompts that will be spoken soon. */
   prefetch(texts: string[]) {
     if (this.settings.voice === 'iphone' || !elevenLabsReady()) return;
-    for (const t of texts) void getClip(t, this.settings.rate, this.settings.voice);
+    for (const t of texts) void getClip(pronounce(t), this.settings.rate, this.settings.voice);
   }
 
   repeat() {
@@ -90,6 +107,7 @@ export class VoiceGuide {
 
   private async pump() {
     if (this.speaking) return;
+    if (this.held && this.queue[0]?.priority !== 'high') return;
     const next = this.queue.shift();
     if (!next) return;
     this.speaking = next;
@@ -100,13 +118,14 @@ export class VoiceGuide {
         // Hazards can't wait for the network; only an already-cached clip is fast enough.
         const budget = next.priority === 'high' ? 150 : this.latencyBudgetMs;
         clip = await Promise.race([
-          getClip(next.text, this.settings.rate, this.settings.voice),
+          getClip(pronounce(next.text), this.settings.rate, this.settings.voice),
           new Promise<null>((r) => setTimeout(() => r(null), budget)),
         ]);
       }
       if (this.speaking !== next) return; // interrupted while waiting
-      if (clip) await this.play(clip);
-      else await Speech.speak({ text: next.text, rate: this.settings.rate });
+      const played = clip ? await this.play(clip) : false;
+      if (!played && this.speaking === next)
+        await Speech.speak({ text: pronounce(next.text), rate: this.settings.rate });
     } catch {
       /* speech unavailable: the live region still shows the text */
     } finally {
@@ -116,19 +135,34 @@ export class VoiceGuide {
     }
   }
 
-  private play(blob: Blob): Promise<void> {
+  /** Play a clip; resolves false if it couldn't be played, so the iPhone voice can step in. */
+  private play(blob: Blob): Promise<boolean> {
     return new Promise((resolve) => {
       const url = URL.createObjectURL(blob);
       const el = new Audio(url);
       this.audio = el;
-      const done = () => {
+      let started = false;
+      const done = (ok: boolean) => {
         URL.revokeObjectURL(url);
         if (this.audio === el) this.audio = null;
-        resolve();
+        resolve(ok);
       };
-      el.addEventListener('ended', done, { once: true });
-      el.addEventListener('error', done, { once: true });
-      el.play().catch(done);
+      el.addEventListener('playing', () => (started = true), { once: true });
+      el.addEventListener('ended', () => done(true), { once: true });
+      el.addEventListener(
+        'error',
+        () => {
+          reportPlaybackError(el.error?.message || `media error ${el.error?.code ?? ''}`.trim());
+          done(started);
+        },
+        { once: true },
+      );
+      el.play().catch((e: unknown) => {
+        // Interrupted on purpose (stop / a hazard) counts as played.
+        if (this.audio !== el) return done(true);
+        reportPlaybackError(e instanceof Error ? e.name : 'blocked');
+        done(false);
+      });
     });
   }
 }

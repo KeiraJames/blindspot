@@ -1,8 +1,8 @@
-# PathSense
+# BlindSpöt
 
 Indoor navigation for blind and low-vision people, on iPhone. Scan a room with the phone, say what the room is, and later ask the phone to take you there. It guides you with speech, vibrations and short sounds, and you answer it by voice.
 
-> PathSense is a travel aid. It complements a cane or guide dog and does not replace them.
+> BlindSpöt is a travel aid. It complements a cane or guide dog and does not replace them.
 
 ## What it does
 

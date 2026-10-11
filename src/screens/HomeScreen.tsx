@@ -18,12 +18,12 @@ export function HomeScreen() {
     if (introduced) return;
     introduced = true;
     void announce(
-      `PathSense. ${status} Choose Go somewhere, Look around, Add a room, My rooms, Settings, or How to use.`,
+      `BlindSpöt. ${status} Choose Go somewhere, Look around, Add a room, My rooms, Settings, or How to use.`,
     );
   }, [status]);
 
   return (
-    <Screen title="PathSense">
+    <Screen title="BlindSpöt">
       <div className="pixel-frame bg-surface-2 p-4 flex items-center gap-4">
         <PixelArt name="house" size={56} />
         <p className="text-lg">{status}</p>

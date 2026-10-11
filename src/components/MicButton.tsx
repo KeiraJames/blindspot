@@ -3,9 +3,15 @@ import { ask, say } from '../lib/feedback';
 import { PixelArt } from './PixelArt';
 import { cx } from './ui';
 
+/** How many times to ask again, without a press, when the answer didn't work out. */
+const FOLLOW_UPS = 2;
+
 /**
  * The main way to answer the app: a large button that asks `prompt` out loud, plays a tone,
  * listens, and hands back what was said. Big enough to find without looking.
+ *
+ * Like a conversation, `onHeard` can return a follow-up question ("Sorry, I didn't catch that.
+ * Where do you want to go?"); the app then asks it and listens again straight away.
  */
 export function MicButton({
   label,
@@ -17,7 +23,7 @@ export function MicButton({
   label: string;
   prompt: string;
   contextualStrings?: string[];
-  onHeard: (text: string) => void;
+  onHeard: (text: string) => string | void;
   className?: string;
 }) {
   const [listening, setListening] = useState(false);
@@ -28,7 +34,16 @@ export function MicButton({
       onClick={async () => {
         setListening(true);
         try {
-          onHeard(await ask(prompt, contextualStrings));
+          let question = prompt;
+          for (let round = 0; round <= FOLLOW_UPS; round++) {
+            const next = onHeard(await ask(question, contextualStrings));
+            if (!next) break;
+            if (round === FOLLOW_UPS) {
+              void say("Let's try again later. Press the big button when you're ready.");
+              break;
+            }
+            question = next;
+          }
         } catch {
           void say('Listening is not available right now. You can type instead.');
         } finally {

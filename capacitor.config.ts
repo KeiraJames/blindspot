@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.keirajames.pathsense',
-  appName: 'PathSense',
+  appName: 'BlindSpöt',
   webDir: 'dist',
   ios: {
     // The AR camera view sits behind a transparent webview; see ARNavPlugin.swift.

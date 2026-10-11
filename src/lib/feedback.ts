@@ -28,6 +28,20 @@ export const voice = new VoiceGuide({
 });
 useSettings.subscribe((s) => voice.update({ rate: s.speechRate, voice: s.voice }));
 
+// Fetch the natural-voice audio for the questions the app asks most, so the first time each
+// is asked it plays straight away instead of waiting on the network.
+setTimeout(
+  () =>
+    voice.prefetch([
+      "Where are you? Say the room you're in.",
+      'Where do you want to go?',
+      'Say a command.',
+      'What is this room called?',
+      "Sorry, I didn't catch that. Where do you want to go?",
+    ]),
+  1500,
+);
+
 // ---- VoiceOver awareness ---------------------------------------------------------------
 // When VoiceOver is on it already reads each screen; the app then speaks only what VoiceOver
 // can't know (navigation prompts, scan coaching, answers to questions).
@@ -72,31 +86,42 @@ export function announce(text: string): Promise<void> {
 }
 
 /**
- * Ask a question out loud and listen for the answer: speak the prompt, play a tone, then
- * transcribe on the device. Resolves with the transcript ('' if nothing was heard).
+ * Ask a question out loud and listen for the answer, like a conversation: speak the prompt,
+ * play a short tone and start listening at once. Listening ends as soon as the person pauses
+ * after speaking (never mid-sentence), and the app holds its own prompts while they talk.
+ * Resolves with the transcript ('' if nothing was heard).
  */
 export async function ask(
   prompt: string,
   contextualStrings: string[] = [],
-  timeoutMs = 6000,
+  timeoutMs = 8000,
 ): Promise<string> {
   voice.stop();
   await say(prompt);
   playEarcon('confirm');
-  // Give the tone a moment so it isn't recorded.
-  await new Promise((r) => setTimeout(r, 250));
-  const { transcript } = await Speech.listen({ timeoutMs, contextualStrings });
-  return cleanTranscript(transcript);
+  voice.hold();
+  try {
+    const { transcript } = await Speech.listen({ timeoutMs, silenceMs: 1000, contextualStrings });
+    return cleanTranscript(transcript);
+  } finally {
+    voice.release();
+  }
 }
 
 export function stopListening() {
   void Speech.stopListening().catch(() => undefined);
 }
 
-/** "the kitchen." → "Kitchen"; "living room" → "Living Room". */
+const FILLER = /^(um+|uh+|er+|erm|hmm+|ah+|oh|so|okay|ok|well|yeah|yes)\b[\s,.]*/i;
+
+/** "the kitchen." → "Kitchen"; "um, living room" → "Living Room". */
 export function cleanTranscript(t: string): string {
-  return t
-    .trim()
+  let s = t.trim();
+  for (let prev = ''; prev !== s;) {
+    prev = s;
+    s = s.replace(FILLER, '');
+  }
+  return s
     .replace(/[.!?,]+$/g, '')
     .replace(/^(it'?s|it is|this is|the room is|call it|name it)\s+/i, '')
     .replace(/^(the|a|an|my)\s+/i, '')

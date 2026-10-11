@@ -43,14 +43,74 @@ export const ELEVEN_VOICES: ElevenVoice[] = [
 
 export const DEFAULT_ELEVEN_VOICE = ELEVEN_VOICES[0]!.id;
 
-/** Voices refused because they need a paid plan; Sarah stands in for them. */
-const needsPaidPlan = new Set<string>();
+/**
+ * Voices refused because they need a paid plan; Sarah stands in for them. Remembered between
+ * launches so the app doesn't spend a network round trip being refused before every first line.
+ */
+const PAID_KEY = 'blindspot.paidVoices';
+const needsPaidPlan = new Set<string>(readPaid());
+
+function readPaid(): string[] {
+  try {
+    const v: unknown = JSON.parse(localStorage.getItem(PAID_KEY) ?? '[]');
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberPaid(voice: string) {
+  needsPaidPlan.add(voice);
+  try {
+    localStorage.setItem(PAID_KEY, JSON.stringify([...needsPaidPlan]));
+  } catch {
+    /* best effort */
+  }
+}
+
+/** Whether a voice was refused for needing a paid plan (so Sarah speaks instead). */
+export const needsPaidVoice = (voice: string) => needsPaidPlan.has(voice);
+
+export interface ElevenStatus {
+  /** null until the first request; then whether the last request worked. */
+  ok: boolean | null;
+  /** Plain words for Settings, e.g. "Working" or "No internet connection". */
+  detail: string;
+}
+
+let status: ElevenStatus = {
+  ok: null,
+  detail: elevenLabsConfiguredAtLoad() ? 'Not tried yet' : 'No ElevenLabs key in this build',
+};
+const statusListeners = new Set<(s: ElevenStatus) => void>();
+
+function elevenLabsConfiguredAtLoad() {
+  return API_KEY.startsWith('sk_');
+}
+
+function setStatus(next: ElevenStatus) {
+  if (next.ok === false) console.warn(`[voice] ElevenLabs: ${next.detail}`);
+  if (next.ok === status.ok && next.detail === status.detail) return;
+  status = next;
+  statusListeners.forEach((l) => l(status));
+}
+
+export const elevenLabsStatus = () => status;
+export function onElevenLabsStatus(fn: (s: ElevenStatus) => void): () => void {
+  statusListeners.add(fn);
+  return () => statusListeners.delete(fn);
+}
+
+/** Note that a clip couldn't be played even though it downloaded. */
+export function reportPlaybackError(detail: string) {
+  setStatus({ ok: false, detail: `Couldn't play the audio (${detail})` });
+}
 
 /** The voice that will actually speak for a requested one. */
 export const resolveVoice = (requested: string) =>
   needsPaidPlan.has(requested) ? FALLBACK_VOICE_ID : requested;
 
-export const elevenLabsConfigured = API_KEY.startsWith('sk_');
+export const elevenLabsConfigured = elevenLabsConfiguredAtLoad();
 
 const MAX_CACHE_ENTRIES = 500;
 
@@ -70,19 +130,41 @@ export function elevenLabsReady(): boolean {
 
 class PaidVoiceError extends Error {}
 
+/** Plain words for an ElevenLabs error response. */
+async function describe(res: Response): Promise<string> {
+  let code = '';
+  try {
+    const body = (await res.json()) as { detail?: { status?: string; code?: string; message?: string } };
+    code = body.detail?.code ?? body.detail?.status ?? '';
+  } catch {
+    /* not JSON */
+  }
+  if (res.status === 401 && /quota/.test(code)) return 'Out of ElevenLabs characters for this month';
+  if (res.status === 401) return 'The ElevenLabs key was not accepted';
+  if (res.status === 429) return 'ElevenLabs is busy; trying again soon';
+  return `ElevenLabs error ${res.status}${code ? ` (${code})` : ''}`;
+}
+
 async function fetchClip(text: string, speed: number, voice: string): Promise<Blob> {
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_64`, {
-    method: 'POST',
-    headers: { 'xi-api-key': API_KEY, 'content-type': 'application/json', accept: 'audio/mpeg' },
-    body: JSON.stringify({
-      text,
-      model_id: MODEL,
-      voice_settings: { stability: 0.6, similarity_boost: 0.75, speed },
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_64`, {
+      method: 'POST',
+      headers: { 'xi-api-key': API_KEY, 'content-type': 'application/json', accept: 'audio/mpeg' },
+      body: JSON.stringify({
+        text,
+        model_id: MODEL,
+        voice_settings: { stability: 0.6, similarity_boost: 0.75, speed },
+      }),
+    });
+  } catch {
+    throw new Error('No internet connection');
+  }
   if (res.status === 402) throw new PaidVoiceError('This voice needs a paid ElevenLabs plan');
-  if (!res.ok) throw new Error(`ElevenLabs ${res.status}`);
-  return res.blob();
+  if (!res.ok) throw new Error(await describe(res));
+  const blob = await res.blob();
+  // Some web views drop the type, and an untyped blob may not play.
+  return blob.type ? blob : new Blob([blob], { type: 'audio/mpeg' });
 }
 
 const inflight = new Map<string, Promise<Blob | null>>();
@@ -99,20 +181,29 @@ export function getClip(text: string, rate: number, requestedVoice: string): Pro
   const existing = inflight.get(key);
   if (existing) return existing;
   const p = (async () => {
-    const cached = await idb.get<Blob>('tts', key).catch(() => undefined);
+    // Never let a slow or stuck cache hold up speech.
+    const cached = await Promise.race([
+      idb.get<Blob>('tts', key).catch(() => undefined),
+      new Promise<undefined>((r) => setTimeout(() => r(undefined), 200)),
+    ]);
     if (cached) return cached;
     if (!elevenLabsReady()) return null;
     try {
       const blob = await fetchClip(text, speed, voice);
       failures = 0;
+      setStatus({
+        ok: true,
+        detail: voice === requestedVoice ? 'Working' : 'Working, using Sarah (your voice needs a paid plan)',
+      });
       void store(key, blob);
       return blob;
     } catch (e) {
       if (e instanceof PaidVoiceError && voice !== FALLBACK_VOICE_ID) {
-        needsPaidPlan.add(voice);
+        rememberPaid(voice);
         inflight.delete(key);
-        return getClip(text, rate, FALLBACK_VOICE_ID);
+        return getClip(text, rate, requestedVoice);
       }
+      setStatus({ ok: false, detail: e instanceof Error ? e.message : 'Unknown error' });
       failures++;
       if (failures >= 2) disabledUntil = Date.now() + 60_000;
       return null;

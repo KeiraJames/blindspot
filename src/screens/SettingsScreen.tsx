@@ -1,8 +1,15 @@
+import { useSyncExternalStore } from 'react';
 import { Screen } from '../components/Screen';
 import { Button, Card, Select, Slider, Toggle } from '../components/ui';
 import { cue, say, voice } from '../lib/feedback';
 import type { DistanceUnit } from '../lib/nav/units';
-import { ELEVEN_VOICES, elevenLabsConfigured } from '../lib/voice/elevenlabs';
+import {
+  ELEVEN_VOICES,
+  elevenLabsConfigured,
+  elevenLabsStatus,
+  needsPaidVoice,
+  onElevenLabsStatus,
+} from '../lib/voice/elevenlabs';
 import { useSettings } from '../state/settings';
 
 const SAMPLE = 'In 5 meters, turn left. Then walk through the door to the kitchen.';
@@ -17,6 +24,7 @@ let sampleTimer: ReturnType<typeof setTimeout> | null = null;
 
 export default function SettingsScreen() {
   const s = useSettings();
+  const natural = useSyncExternalStore(onElevenLabsStatus, elevenLabsStatus);
   return (
     <Screen title="Settings" back="/">
       <Card className="flex flex-col gap-3">
@@ -53,7 +61,9 @@ export default function SettingsScreen() {
                   () =>
                     void say(
                       v
-                        ? `Hi, I'm ${v.name}. In 5 meters, turn left.`
+                        ? needsPaidVoice(v.id)
+                          ? `Hi, I'm Sarah, standing in for ${v.name}. In 5 meters, turn left.`
+                          : `Hi, I'm ${v.name}. In 5 meters, turn left.`
                         : 'This is the iPhone voice. In 5 meters, turn left.',
                     ),
                   150,
@@ -62,11 +72,18 @@ export default function SettingsScreen() {
             >
               {ELEVEN_VOICES.map((v) => (
                 <option key={v.id} value={v.id}>
-                  {v.name}: {v.description}
+                  {v.name}:{' '}
+                  {needsPaidVoice(v.id) ? 'needs a paid ElevenLabs plan, so Sarah speaks.' : v.description}
                 </option>
               ))}
               <option value="iphone">iPhone voice: works offline, nothing sent online.</option>
             </Select>
+            {s.voice !== 'iphone' && (
+              <p className="text-sm" role="status">
+                <strong>Natural voice:</strong> {natural.detail}.
+                {natural.ok === false && ' The iPhone voice is speaking for now.'}
+              </p>
+            )}
             <p className="text-muted text-sm">
               ElevenLabs voices send the words being spoken to ElevenLabs. Without internet, the iPhone voice
               is used.

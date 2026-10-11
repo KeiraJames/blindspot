@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>PathSense</string>
+	<string>BlindSpöt</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -27,13 +27,13 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>PathSense uses the camera and LiDAR to scan rooms and to follow your position while guiding you. Images are processed on your iPhone and are not uploaded.</string>
+	<string>BlindSpöt uses the camera and LiDAR to scan rooms and to follow your position while guiding you. Images are processed on your iPhone and are not uploaded.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>PathSense listens when you say a room name or a destination.</string>
+	<string>BlindSpöt listens when you say a room name or a destination.</string>
 	<key>NSMotionUsageDescription</key>
-	<string>PathSense uses motion sensors to track your steps and heading between rooms.</string>
+	<string>BlindSpöt uses motion sensors to track your steps and heading between rooms.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>PathSense turns what you say into a room name or destination, on your iPhone when possible.</string>
+	<string>BlindSpöt turns what you say into a room name or destination, on your iPhone when possible.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

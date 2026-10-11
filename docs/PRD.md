@@ -1,10 +1,10 @@
-# PathSense PRD (iOS web app)
+# BlindSpöt PRD (iOS web app)
 
-Working name: **PathSense**. It can be renamed at any time; nothing in the architecture depends on the name.
+Working name: **BlindSpöt**. It can be renamed at any time; nothing in the architecture depends on the name.
 
 ## Product shape
 
-PathSense runs **only on iOS**. It is still a **responsive web app** (HTML/CSS/React), not a SwiftUI product. It runs in **WKWebView** through **Capacitor**. The UI is web; scanning, AR, haptics and Core ML use native iOS APIs.
+BlindSpöt runs **only on iOS**. It is still a **responsive web app** (HTML/CSS/React), not a SwiftUI product. It runs in **WKWebView** through **Capacitor**. The UI is web; scanning, AR, haptics and Core ML use native iOS APIs.
 
 Safari on its own cannot give a page LiDAR, RoomPlan, Core Haptics or a reliable AR session. An iOS-only Capacitor shell lets a web UI meet those requirements. **Android, desktop Chrome and public PWA install are out of scope.**
 
@@ -229,4 +229,4 @@ Always pair each haptic with speech and its own earcon.
 - **Web UI** (React, responsive) inside **Capacitor**. Not a SwiftUI app, and not a Safari-only PWA.
 - LiDAR scanning uses **ARKit/RoomPlan** on Pro devices.
 - Firebase is the only backend; ElevenLabs is the only paid voice API.
-- PathSense is a working title.
+- BlindSpöt is a working title.

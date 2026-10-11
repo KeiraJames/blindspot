@@ -78,7 +78,7 @@ export default function ScanScreen() {
     const sign = signText(r);
     const hint = sign ? ` I saw a sign that says ${sign}.` : '';
     try {
-      const heard = await ask(`${intro}What is this room called?${hint} Say its name after the tone.`, [
+      const heard = await ask(`${intro}What is this room called?${hint}`, [
         ...COMMON_ROOMS,
         ...(sign ? [`Room ${sign}`] : []),
       ]);
@@ -244,10 +244,10 @@ export default function ScanScreen() {
         <>
           <MicButton
             label={name ? 'Say it again' : 'Say the name'}
-            prompt="Say the room's name after the tone."
+            prompt="What is this room called?"
             contextualStrings={COMMON_ROOMS}
             onHeard={(heard) => {
-              if (!heard) return void say("I didn't hear anything. Try again, or type the name.");
+              if (!heard) return "Sorry, I didn't catch that. What is this room called?";
               setName(heard);
               setTyped(heard);
               void say(`I heard ${heard}. Press Save, or Say it again.`);

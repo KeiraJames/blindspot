@@ -144,12 +144,12 @@ function Navigator({
     setQuery('');
   };
 
-  /** Spoken answer to "where are you" / "where to". */
-  const onPlaceHeard = (heard: string, pick: (id: string) => void) => {
-    if (!heard) return void say("I didn't hear anything. Press the big button and try again.");
+  /** Spoken answer to "where are you" / "where to"; returns a follow-up question if it didn't work. */
+  const onPlaceHeard = (heard: string, pick: (id: string) => void, question: string): string | void => {
+    if (!heard) return `Sorry, I didn't catch that. ${question}`;
     const place = matchPlace(heard, places);
-    if (place) pick(place.id);
-    else void say(`I couldn't find ${heard}. The rooms are: ${roomList}. Try again.`);
+    if (place) return pick(place.id);
+    return `I couldn't find ${heard}. You can say ${roomList}. ${question}`;
   };
 
   /** Spoken command while walking. */
@@ -519,7 +519,7 @@ function Navigator({
           label="Say where you are"
           prompt="Where are you? Say the room you're in."
           contextualStrings={places.map((p) => p.label)}
-          onHeard={(heard) => onPlaceHeard(heard, chooseStart)}
+          onHeard={(heard) => onPlaceHeard(heard, chooseStart, 'Which room are you in?')}
         />
       ) : (
         <>
@@ -537,7 +537,7 @@ function Navigator({
             label="Say where to go"
             prompt="Where do you want to go?"
             contextualStrings={places.map((p) => p.label)}
-            onHeard={(heard) => onPlaceHeard(heard, chooseDestination)}
+            onHeard={(heard) => onPlaceHeard(heard, chooseDestination, 'Where do you want to go?')}
           />
         </>
       )}

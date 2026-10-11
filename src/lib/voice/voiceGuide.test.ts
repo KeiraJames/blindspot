@@ -9,6 +9,7 @@ let ready = true;
 vi.mock('./elevenlabs', () => ({
   getClip: (t: string, r: number, v: string) => getClip(t, r, v),
   elevenLabsReady: () => ready,
+  reportPlaybackError: vi.fn(),
 }));
 
 const { VoiceGuide } = await import('./voiceGuide');
@@ -48,6 +49,40 @@ describe('VoiceGuide with the natural voice', () => {
     await unavailable.say('Hi.');
     expect(getClip).not.toHaveBeenCalled();
     expect(speak).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('VoiceGuide as a companion', () => {
+  beforeEach(() => {
+    speak.mockClear();
+    getClip.mockReset();
+    getClip.mockResolvedValue(null);
+    ready = true;
+  });
+
+  it('waits while the person is talking, then speaks', async () => {
+    const v = new VoiceGuide({ enabled: true, rate: 1, voice: 'iphone' });
+    v.hold();
+    const done = v.say('Door ahead.');
+    await Promise.resolve();
+    expect(speak).not.toHaveBeenCalled();
+    v.release();
+    await done;
+    expect(speak).toHaveBeenCalledWith({ text: 'Door ahead.', rate: 1 });
+  });
+
+  it('lets safety prompts through even while the person is talking', async () => {
+    const v = new VoiceGuide({ enabled: true, rate: 1, voice: 'iphone' });
+    v.hold();
+    await v.say('Stop.', 'high');
+    expect(speak).toHaveBeenCalledWith({ text: 'Stop.', rate: 1 });
+  });
+
+  it('says the app name the way it sounds', async () => {
+    const v = new VoiceGuide({ enabled: true, rate: 1, voice: 'river' });
+    await v.say('BlindSpöt. Choose Go somewhere.');
+    expect(getClip).toHaveBeenCalledWith('Blind Spot. Choose Go somewhere.', 1, 'river');
+    expect(speak).toHaveBeenCalledWith({ text: 'Blind Spot. Choose Go somewhere.', rate: 1 });
   });
 });
 

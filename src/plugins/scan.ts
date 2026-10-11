@@ -47,7 +47,7 @@ class ScanWeb extends WebPlugin implements ScanPlugin {
     }
     return {
       supported: false,
-      reason: 'Scanning needs an iPhone or iPad Pro with LiDAR running the PathSense app.',
+      reason: 'Scanning needs an iPhone or iPad Pro with LiDAR running the BlindSpöt app.',
     };
   }
 

@@ -27,6 +27,15 @@ public class PathSenseSpeechPlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthes
     private var listenCall: CAPPluginCall?
     private var listenTimer: Timer?
     private var transcript = ""
+    // End-of-speech detection: the person has started talking, and when they last made a sound
+    // or changed the transcript. Listening ends after a short silence, never mid-sentence.
+    private var listenStarted = Date()
+    private var lastActivity = Date()
+    private var heardVoice = false
+    private var noiseFloor: Float = -50
+    private var startTimeout: TimeInterval = 8
+    private var silenceWindow: TimeInterval = 1.0
+    private static let maxListen: TimeInterval = 30
 
     override public func load() {
         synthesizer.delegate = self
@@ -50,10 +59,15 @@ public class PathSenseSpeechPlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthes
         }
     }
 
-    /// Prompts must be heard with the ringer switch off, and should duck music, not stop it.
+    /// One session for both talking and listening, so the app never has to switch audio modes
+    /// between a question and the answer (switching causes a gap and can clip the start of
+    /// speech). Prompts are heard with the ringer switch off and duck music rather than stop it.
     static func setPlaybackSession() throws {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playback, mode: .voicePrompt, options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
+        if session.category != .playAndRecord {
+            try session.setCategory(.playAndRecord, mode: .default,
+                                    options: [.duckOthers, .defaultToSpeaker, .allowBluetoothA2DP])
+        }
         try session.setActive(true)
     }
 
@@ -82,7 +96,7 @@ public class PathSenseSpeechPlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthes
             // Use the app's own speed setting (not VoiceOver's), and leave a short breath
             // between sentences so instructions are easier to follow.
             utterance.prefersAssistiveTechnologySettings = false
-            utterance.postUtteranceDelay = 0.25
+            utterance.postUtteranceDelay = 0.1
             self.pendingSpeech[ObjectIdentifier(utterance)] = call
             self.synthesizer.speak(utterance)
         }
@@ -107,6 +121,7 @@ public class PathSenseSpeechPlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthes
 
     @objc func listen(_ call: CAPPluginCall) {
         let timeout = (call.getDouble("timeoutMs") ?? 8000) / 1000
+        let silence = (call.getDouble("silenceMs") ?? 1000) / 1000
         let contextual = call.getArray("contextualStrings", String.self) ?? []
         SFSpeechRecognizer.requestAuthorization { status in
             guard status == .authorized else {
@@ -120,7 +135,7 @@ public class PathSenseSpeechPlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthes
                 }
                 DispatchQueue.main.async {
                     do {
-                        try self.startRecognition(call: call, timeout: timeout, contextual: contextual)
+                        try self.startRecognition(call: call, timeout: timeout, silence: silence, contextual: contextual)
                     } catch {
                         self.finishListening(error: error.localizedDescription)
                     }
@@ -129,7 +144,7 @@ public class PathSenseSpeechPlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthes
         }
     }
 
-    private func startRecognition(call: CAPPluginCall, timeout: TimeInterval, contextual: [String]) throws {
+    private func startRecognition(call: CAPPluginCall, timeout: TimeInterval, silence: TimeInterval, contextual: [String]) throws {
         finishListening(error: "Superseded by a new request")
         guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US")), recognizer.isAvailable else {
             call.reject("Speech recognition is not available right now.")
@@ -137,13 +152,18 @@ public class PathSenseSpeechPlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthes
         }
         listenCall = call
         transcript = ""
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers, .defaultToSpeaker])
-        try session.setActive(true, options: .notifyOthersOnDeactivation)
+        startTimeout = timeout
+        silenceWindow = silence
+        listenStarted = Date()
+        lastActivity = Date()
+        heardVoice = false
+        noiseFloor = -50
+        try Self.setPlaybackSession()
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.contextualStrings = contextual
+        request.addsPunctuation = false
         // Keep audio on the device whenever the hardware supports it.
         if recognizer.supportsOnDeviceRecognition { request.requiresOnDeviceRecognition = true }
         recognitionRequest = request
@@ -151,23 +171,69 @@ public class PathSenseSpeechPlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthes
         let input = audioEngine.inputNode
         let format = input.outputFormat(forBus: 0)
         input.removeTap(onBus: 0)
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
             request.append(buffer)
+            let level = Self.level(of: buffer)
+            DispatchQueue.main.async { self?.noteLevel(level) }
         }
         audioEngine.prepare()
         try audioEngine.start()
 
         recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
-            guard let self else { return }
-            if let result {
-                self.transcript = result.bestTranscription.formattedString
-                if result.isFinal { self.finishListening(error: nil) }
-            } else if error != nil {
-                self.finishListening(error: nil)
+            DispatchQueue.main.async {
+                guard let self, self.listenCall != nil else { return }
+                if let result {
+                    let text = result.bestTranscription.formattedString
+                    if text != self.transcript {
+                        self.transcript = text
+                        self.heardVoice = true
+                        self.lastActivity = Date()
+                    }
+                    if result.isFinal { self.finishListening(error: nil) }
+                } else if error != nil {
+                    self.finishListening(error: nil)
+                }
             }
         }
-        listenTimer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
-            self?.finishListening(error: nil)
+        // Check often whether the person has finished, rather than waiting a fixed time.
+        listenTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            self?.checkEndOfSpeech()
+        }
+    }
+
+    /// Loudness of one microphone buffer in decibels.
+    private static func level(of buffer: AVAudioPCMBuffer) -> Float {
+        guard let data = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return -160 }
+        var sum: Float = 0
+        for i in 0..<Int(buffer.frameLength) { sum += data[i] * data[i] }
+        let rms = sqrt(sum / Float(buffer.frameLength))
+        return 20 * log10(max(rms, 1e-8))
+    }
+
+    /// Track background noise and notice when the person is making sound, so a pause to think
+    /// mid-sentence doesn't end listening while they're still talking.
+    private func noteLevel(_ db: Float) {
+        guard listenCall != nil else { return }
+        if db < noiseFloor { noiseFloor = db } else { noiseFloor += 0.02 }
+        if db > noiseFloor + 12 && db > -55 {
+            lastActivity = Date()
+            if !transcript.isEmpty { heardVoice = true }
+        }
+    }
+
+    private func checkEndOfSpeech() {
+        guard listenCall != nil else { return }
+        let now = Date()
+        let quiet = now.timeIntervalSince(lastActivity)
+        let elapsed = now.timeIntervalSince(listenStarted)
+        if heardVoice && !transcript.isEmpty {
+            // They spoke and have now paused: answer straight away.
+            if quiet >= silenceWindow || elapsed >= Self.maxListen { finishListening(error: nil) }
+        } else if elapsed >= startTimeout && quiet >= silenceWindow {
+            // Nobody started talking (and nobody is mid-word right now).
+            finishListening(error: nil)
+        } else if elapsed >= Self.maxListen {
+            finishListening(error: nil)
         }
     }
 

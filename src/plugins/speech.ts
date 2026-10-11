@@ -10,12 +10,23 @@ export interface SpeakOptions {
   interrupt?: boolean;
 }
 
+export interface ListenOptions {
+  timeoutMs?: number;
+  silenceMs?: number;
+  contextualStrings?: string[];
+}
+
 export interface SpeechPlugin {
   /** AVSpeechSynthesizer fallback when ElevenLabs is unavailable. Resolves when speech finishes. */
   speak(options: SpeakOptions): Promise<void>;
   stop(): Promise<void>;
-  /** On-device dictation (SFSpeechRecognizer) for voice room naming and destination search. */
-  listen(options?: { timeoutMs?: number; contextualStrings?: string[] }): Promise<{ transcript: string }>;
+  /**
+   * On-device dictation (SFSpeechRecognizer) for voice room naming and destination search.
+   * Listening ends `silenceMs` after the person stops talking (default 1000), so answers come
+   * straight away but a pause mid-sentence doesn't cut them off. `timeoutMs` (default 8000) is
+   * only how long to wait for them to start.
+   */
+  listen(options?: ListenOptions): Promise<{ transcript: string }>;
   stopListening(): Promise<void>;
   /** Configure AVAudioSession so prompts play with the ringer switch off and duck other audio. */
   configureAudioSession(): Promise<void>;
@@ -31,7 +42,9 @@ type SpeechRecognitionCtor = new () => {
   lang: string;
   interimResults: boolean;
   maxAlternatives: number;
+  continuous: boolean;
   onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onspeechstart: (() => void) | null;
   onerror: ((e: { error: string }) => void) | null;
   onend: (() => void) | null;
   start(): void;
@@ -56,7 +69,7 @@ class SpeechWeb extends WebPlugin implements SpeechPlugin {
   async stop() {
     if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
   }
-  async listen({ timeoutMs = 8000 }: { timeoutMs?: number } = {}) {
+  async listen({ timeoutMs = 8000, silenceMs = 1000 }: ListenOptions = {}) {
     const w = window as unknown as {
       SpeechRecognition?: SpeechRecognitionCtor;
       webkitSpeechRecognition?: SpeechRecognitionCtor;
@@ -67,19 +80,30 @@ class SpeechWeb extends WebPlugin implements SpeechPlugin {
       const r = new Ctor();
       this.recognizer = r;
       r.lang = 'en-US';
-      r.interimResults = false;
+      r.continuous = true;
+      r.interimResults = true;
       r.maxAlternatives = 1;
       let transcript = '';
-      const timer = setTimeout(() => r.stop(), timeoutMs);
+      // Wait for them to start; once they do, stop after a short silence.
+      let timer = setTimeout(() => r.stop(), timeoutMs);
+      const cap = setTimeout(() => r.stop(), 30_000);
+      r.onspeechstart = () => clearTimeout(timer);
       r.onresult = (e) => {
-        transcript = e.results[0]?.[0]?.transcript ?? '';
+        transcript = Array.from(e.results, (res) => res[0]?.transcript ?? '')
+          .join(' ')
+          .trim();
+        clearTimeout(timer);
+        timer = setTimeout(() => r.stop(), silenceMs);
       };
       r.onerror = (e) => {
         clearTimeout(timer);
+        clearTimeout(cap);
+        if (e.error === 'no-speech' || e.error === 'aborted') return;
         reject(new Error(e.error));
       };
       r.onend = () => {
         clearTimeout(timer);
+        clearTimeout(cap);
         this.recognizer = null;
         resolve({ transcript });
       };

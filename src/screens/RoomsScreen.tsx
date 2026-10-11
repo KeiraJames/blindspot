@@ -31,7 +31,7 @@ export default function RoomsScreen() {
 
   const renameByVoice = async (roomId: string, oldName: string) => {
     try {
-      const heard = await ask(`What should ${oldName} be called? Say the new name after the tone.`);
+      const heard = await ask(`What should ${oldName} be called now?`);
       if (!heard) return void say("I didn't hear a name. Nothing changed.");
       await renameRoom(roomId, heard);
       void cue('confirm', `Renamed ${oldName} to ${heard}.`);

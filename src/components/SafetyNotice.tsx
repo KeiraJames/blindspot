@@ -7,7 +7,7 @@ import { PixelArt } from './PixelArt';
 import { Button } from './ui';
 
 export const SAFETY_TEXT =
-  'PathSense is a travel aid. It complements your cane or guide dog and does not replace them. It cannot see every obstacle and never confirms that a path is clear. Stay aware of your surroundings.';
+  'BlindSpöt is a travel aid. It complements your cane or guide dog and does not replace them. It cannot see every obstacle and never confirms that a path is clear. Stay aware of your surroundings.';
 
 /** Blocking first-run dialog (PRD §3, §10: safety copy). */
 export function SafetyNotice() {
