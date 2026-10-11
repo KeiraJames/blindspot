@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildSampleMap } from '../../data/sampleMap';
+import { buildMapleHall } from '../../test/fixtures/mapleHall';
 import { DEFAULT_PREFERENCES, edgeCost, findRoute, nearestNode, nearestOfType } from './astar';
 import { GraphIndex } from './graph';
 import type { MapGraph } from './types';
 
-const idx = () => new GraphIndex(buildSampleMap());
+const idx = () => new GraphIndex(buildMapleHall());
 
 /** Reference Dijkstra used to check A* optimality. */
 function dijkstraCost(index: GraphIndex, start: string, goal: string, prefs = DEFAULT_PREFERENCES): number {
@@ -60,14 +60,14 @@ describe('findRoute', () => {
   });
 
   it('returns null when unreachable and for unknown nodes', () => {
-    const g: MapGraph = buildSampleMap();
+    const g: MapGraph = buildMapleHall();
     g.edges = g.edges.filter((e) => e.kind !== 'stairs' && e.kind !== 'elevator');
     expect(findRoute(new GraphIndex(g), 'g-lobby', 'f1-202')).toBeNull();
     expect(findRoute(idx(), 'nope', 'g-lobby')).toBeNull();
   });
 
   it('respects one-way edges', () => {
-    const g = buildSampleMap();
+    const g = buildMapleHall();
     g.edges = g.edges.map((e) => (e.id === 'e-g-lobby-g-j1' ? { ...e, oneWay: true } : e));
     const index = new GraphIndex(g);
     expect(findRoute(index, 'g-lobby', 'g-j1')).not.toBeNull();

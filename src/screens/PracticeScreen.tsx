@@ -58,7 +58,7 @@ export default function PracticeScreen() {
         <GestureSurface
           onGesture={onGesture}
           label="Gesture practice area"
-          className="h-72 rounded-2xl border-2 border-dashed border-line flex items-center justify-center text-center p-4"
+          className="h-72 rounded-2xl border-[3px] border-dashed border-line bg-surface flex items-center justify-center text-center p-4"
         >
           <p aria-hidden className="text-2xl font-bold">
             {last ? GESTURE_HELP.find((x) => x.gesture === last)!.label : 'Swipe, tap or hold here'}

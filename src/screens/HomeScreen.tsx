@@ -1,7 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { PixelArt } from '../components/PixelArt';
 import { Screen } from '../components/Screen';
+import { SAMPLE_MAP_ID } from '../data/sampleHome';
 import { Button, Card, ErrorBox, Field, LinkButton, Select, Spinner } from '../components/ui';
 import { ROLE_LABELS } from '../firebase/repo';
 import { useCreateMap, useMaps, useOrgs } from '../state/queries';
@@ -37,19 +39,43 @@ export function HomeScreen() {
         </Link>
       }
     >
+      <div className="pixel-frame bg-surface-2 p-4 flex items-center gap-4">
+        <PixelArt name="house" size={72} />
+        <div>
+          <p className="font-pixel text-2xl font-bold">PathSense</p>
+          <p className="text-muted">Indoor directions you can follow without looking.</p>
+        </div>
+        <PixelArt name="sparkle" size={28} className="ml-auto self-start" />
+      </div>
       {maps.isLoading && <Spinner label="Loading maps" />}
       <ErrorBox error={maps.error} />
       <ul className="flex flex-col gap-3" aria-label="Maps">
         {maps.data?.map((m) => (
           <Card as="li" key={m.id} className="flex flex-col gap-3">
             <div>
-              <h2 className="text-xl font-bold">{m.name}</h2>
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <PixelArt name="house" size={28} />
+                {m.name}
+              </h2>
               <p className="text-muted text-sm">
                 {ROLE_LABELS[m.role]}
                 {m.latestVersion ? ` · version ${m.latestVersion}` : ' · not published yet'}
                 {m.orgId ? ' · organization map' : ''}
               </p>
             </div>
+            {m.id === SAMPLE_MAP_ID && (
+              <ul className="grid grid-cols-4 gap-2" aria-label="Places in the sample home">
+                {(['kitchen', 'bedroom', 'bathroom', 'closet'] as const).map((room) => (
+                  <li
+                    key={room}
+                    className="flex flex-col items-center gap-1 bg-surface-2 border-[3px] border-line px-1 py-2 min-w-0"
+                  >
+                    <PixelArt name={room} size={40} />
+                    <span className="font-pixel text-xs capitalize">{room}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <LinkButton
                 to={`/maps/${m.id}/navigate`}
@@ -89,7 +115,7 @@ export function HomeScreen() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Maple Hall"
+              placeholder="e.g. My apartment"
             />
             {(orgs.data?.length ?? 0) > 0 && (
               <Select label="Owner" value={orgId} onChange={(e) => setOrgId(e.target.value)}>

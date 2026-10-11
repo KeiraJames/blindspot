@@ -11,12 +11,12 @@ import { Link, type LinkProps } from 'react-router-dom';
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
 const base =
-  'inline-flex items-center justify-center gap-2 rounded-2xl font-semibold min-h-12 px-5 py-3 text-base select-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors';
+  'pixel-frame pixel-press inline-flex items-center justify-center gap-2 font-semibold min-h-12 px-5 py-3 text-base select-none disabled:opacity-50 disabled:cursor-not-allowed';
 const variants: Record<Variant, string> = {
   primary: 'bg-accent text-accent-fg hover:brightness-110',
-  secondary: 'bg-surface-2 text-fg border border-line hover:brightness-125',
+  secondary: 'bg-surface text-fg hover:bg-surface-2',
   danger: 'bg-danger text-danger-fg hover:brightness-110',
-  ghost: 'text-fg hover:bg-surface-2',
+  ghost: 'text-fg hover:bg-surface-2 !border-transparent !shadow-none',
 };
 
 export function cx(...parts: (string | false | null | undefined)[]) {
@@ -69,7 +69,7 @@ export function Card({
   unknown
 >) {
   return (
-    <As className={cx('rounded-2xl bg-surface border border-line p-4', className)} {...rest}>
+    <As className={cx('pixel-frame bg-surface p-4', className)} {...rest}>
       {children}
     </As>
   );
@@ -92,7 +92,7 @@ export function Field({
         id={id}
         aria-describedby={hint || error ? `${id}-d` : undefined}
         aria-invalid={error ? true : undefined}
-        className="min-h-12 rounded-xl bg-surface-2 border border-line px-3 text-fg text-base"
+        className="min-h-12 bg-surface border-[3px] border-line px-3 text-fg text-base"
         {...rest}
       />
       {(hint || error) && (
@@ -118,7 +118,7 @@ export function Select({
       </label>
       <select
         id={id}
-        className="min-h-12 rounded-xl bg-surface-2 border border-line px-3 text-fg text-base"
+        className="min-h-12 bg-surface border-[3px] border-line px-3 text-fg text-base"
         {...rest}
       >
         {children}
@@ -232,7 +232,7 @@ export function ErrorBox({ error }: { error: unknown }) {
   if (!error) return null;
   const msg = error instanceof Error ? error.message : String(error);
   return (
-    <p role="alert" className="rounded-xl border border-danger text-danger p-3">
+    <p role="alert" className="border-[3px] border-danger bg-surface text-danger p-3">
       {msg}
     </p>
   );

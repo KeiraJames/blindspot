@@ -18,7 +18,7 @@ export function StudioCanvas({ highlight }: { highlight: string[] }) {
       selectedIds={s.selection}
       highlightIds={highlight}
       ghost={ghostFor(placement.draft, placement.transform)}
-      className="w-full h-full min-h-80 rounded-2xl border border-line bg-surface"
+      className="w-full h-full min-h-80 border-[3px] border-line bg-surface"
       onNodePointerDown={(node, e) => {
         if (s.tool === 'connect') {
           const first = s.selection[0];

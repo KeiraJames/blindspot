@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useSettings } from '../state/settings';
 import { unlockAudio } from '../lib/voice/earcons';
 import { Speech } from '../plugins/speech';
+import { PixelArt } from './PixelArt';
 import { Button } from './ui';
 
 export const SAFETY_TEXT =
@@ -27,6 +28,7 @@ export function SafetyNotice() {
         tabIndex={-1}
         className="max-w-md flex flex-col gap-5 outline-none"
       >
+        <PixelArt name="heart" size={72} />
         <h1 id="safety-title" className="text-3xl font-bold">
           Before you start
         </h1>

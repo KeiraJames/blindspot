@@ -123,7 +123,7 @@ export default function StudioScreen() {
               aria-selected={f.id === floor.id}
               onClick={() => s.setFloor(f.id)}
               className={cx(
-                'min-h-12 px-4 rounded-xl border font-semibold whitespace-nowrap',
+                'font-pixel min-h-12 px-4 border-[3px] border-line font-semibold whitespace-nowrap',
                 f.id === floor.id ? 'bg-accent text-accent-fg border-accent' : 'border-line bg-surface-2',
               )}
             >
@@ -182,7 +182,7 @@ export default function StudioScreen() {
           <div className="h-[55vh] lg:h-[70vh]">
             <StudioCanvas highlight={highlight} />
           </div>
-          <details className="rounded-2xl border border-line p-3">
+          <details className="pixel-frame bg-surface p-3">
             <summary className="font-semibold min-h-12 flex items-center cursor-pointer">
               Floor settings
             </summary>
@@ -232,7 +232,7 @@ export default function StudioScreen() {
                 aria-controls={`panel-${p.id}`}
                 onClick={() => setPanel(p.id)}
                 className={cx(
-                  'min-h-12 rounded-xl text-sm font-semibold border',
+                  'font-pixel min-h-12 text-sm font-semibold border-[3px] border-line',
                   panel === p.id ? 'bg-accent text-accent-fg border-accent' : 'border-line bg-surface-2',
                 )}
               >

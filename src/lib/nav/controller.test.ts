@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildSampleMap } from '../../data/sampleMap';
+import { buildMapleHall } from '../../test/fixtures/mapleHall';
 import { NavigationController, type NavOutput } from './controller';
 import { WalkSimulator } from './simulator';
 
@@ -16,7 +16,7 @@ function make() {
     repeat: () => said.push('<repeat>'),
     stopSpeech: () => undefined,
   };
-  const c = new NavigationController(buildSampleMap(), out, NavigationController.defaultOptions());
+  const c = new NavigationController(buildMapleHall(), out, NavigationController.defaultOptions());
   return { c, said, cues };
 }
 

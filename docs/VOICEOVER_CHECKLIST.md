@@ -1,6 +1,6 @@
 # VoiceOver walkthrough checklist
 
-Run this on a device with VoiceOver on (Settings → Accessibility → VoiceOver) before each TestFlight build. Test at the default text size and at the largest Dynamic Type size.
+Run this on a device with VoiceOver on (Settings → Accessibility → VoiceOver) before each TestFlight build. Test at the default text size and at the largest Dynamic Type size. Headings use a pixel font; check they stay readable at large sizes.
 
 ## First launch
 - [ ] The safety notice is announced as an alert dialog, and focus starts on it.
@@ -41,7 +41,7 @@ Run this on a device with VoiceOver on (Settings → Accessibility → VoiceOver
 - [ ] Checks list each issue with a "Show" button that selects the place.
 - [ ] Publish is disabled with an explanation while there are errors.
 - [ ] The 3D view has a text summary.
-- [ ] Contrast: check "Maximum contrast" mode and both system appearances.
+- [ ] Contrast: check the pink theme and "Maximum contrast" mode. The pink theme stays light even when the phone is in dark mode.
 - [ ] Focus outlines are visible with a keyboard (iPad with keyboard).
 
 ## Settings

@@ -152,7 +152,7 @@ export function Preview3D({ graph, floorId }: { graph: MapGraph; floorId: string
       ref={host}
       role="img"
       aria-label={summary}
-      className="w-full h-96 rounded-2xl border border-line overflow-hidden bg-surface"
+      className="w-full h-96 border-[3px] border-line overflow-hidden bg-surface"
     />
   );
 }

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { FloorPlan } from '../components/FloorPlan';
 import { GestureSurface } from '../components/GestureSurface';
+import { PixelArt, spriteFor } from '../components/PixelArt';
 import { Screen } from '../components/Screen';
 import { Button, Card, cx, ErrorBox, Field, Spinner, Toggle } from '../components/ui';
 import { cue, say, voice } from '../lib/feedback';
@@ -308,6 +309,15 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
   const viewFloor =
     state.pose?.floorId ??
     (state.startId ? controller.index.node(state.startId).floorId : graph.floors[0]!.id);
+  // Offer only shortcuts this map can satisfy (the sample home has no exit, stairs or elevator).
+  const available = {
+    exit: graph.nodes.some((n) => n.poiType === 'exit' || (n.kind === 'door' && n.exterior)),
+    // A single bathroom is already in the list; "nearest" only helps when there are several.
+    bathroom: graph.nodes.filter((n) => n.poiType === 'bathroom').length > 1,
+    elevator: graph.nodes.some((n) => n.kind === 'elevator'),
+    stairs: graph.edges.some((e) => e.kind === 'stairs'),
+  };
+  const shortcuts = (['exit', 'bathroom', 'elevator'] as const).filter((k) => available[k]);
   const filtered = query.trim() ? controller.findDestination(query) : controller.destinations;
   const active = state.phase === 'guiding' || state.phase === 'paused' || state.phase === 'arrived';
   const choosingStart = state.phase === 'choose_start' || (!state.startId && state.phase !== 'preview');
@@ -328,9 +338,18 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
                   ? 'Paused'
                   : `${formatDistance(state.remaining, settings.units, settings.stepLength)} to go`}
             </p>
-            <p className="text-muted text-right">{controller.label(state.destinationId)}</p>
+            <p className="text-muted text-right flex items-center gap-2">
+              {(() => {
+                const dest = state.destinationId
+                  ? controller.index.nodes.get(state.destinationId)
+                  : undefined;
+                const sprite = dest ? spriteFor(dest) : null;
+                return sprite ? <PixelArt name={sprite} size={28} /> : null;
+              })()}
+              {controller.label(state.destinationId)}
+            </p>
           </div>
-          <p aria-hidden className="text-3xl font-bold leading-tight bg-bg/80 rounded-2xl p-3">
+          <p aria-hidden className="pixel-frame text-3xl font-bold leading-tight bg-surface p-3">
             {state.lastPrompt}
           </p>
           {arError && <p className="text-warn">AR unavailable ({arError}). Using the walk simulator.</p>}
@@ -371,9 +390,11 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
               {state.phase === 'paused' ? 'Resume' : 'Pause'}
             </Button>
           )}
-          <Button large onClick={() => controller.routeToNearest('exit')}>
-            Nearest exit
-          </Button>
+          {available.exit && (
+            <Button large onClick={() => controller.routeToNearest('exit')}>
+              Nearest exit
+            </Button>
+          )}
           {state.steps.some((s) => s.kind === 'floor_change') && (
             <Button
               large
@@ -420,15 +441,17 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
                 </li>
               ))}
             </ol>
-            <Toggle
-              label="Avoid stairs"
-              checked={settings.avoidStairs}
-              onChange={(v) => {
-                settings.set({ avoidStairs: v });
-                controller.updateOptions(navOptions({ ...settings, avoidStairs: v }));
-                controller.setDestination(state.destinationId!);
-              }}
-            />
+            {available.stairs && (
+              <Toggle
+                label="Avoid stairs"
+                checked={settings.avoidStairs}
+                onChange={(v) => {
+                  settings.set({ avoidStairs: v });
+                  controller.updateOptions(navOptions({ ...settings, avoidStairs: v }));
+                  controller.setDestination(state.destinationId!);
+                }}
+              />
+            )}
           </Card>
           <Button variant="primary" large block onClick={() => controller.begin()}>
             Start
@@ -473,11 +496,13 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
               </Button>
             )}
           </div>
-          {!choosingStart && (
+          {!choosingStart && shortcuts.length > 0 && (
             <div className="grid grid-cols-3 gap-2">
-              <Button onClick={() => controller.routeToNearest('exit')}>Nearest exit</Button>
-              <Button onClick={() => controller.routeToNearest('bathroom')}>Bathroom</Button>
-              <Button onClick={() => controller.routeToNearest('elevator')}>Elevator</Button>
+              {shortcuts.map((k) => (
+                <Button key={k} onClick={() => controller.routeToNearest(k)}>
+                  {{ exit: 'Nearest exit', bathroom: 'Nearest bathroom', elevator: 'Elevator' }[k]}
+                </Button>
+              ))}
             </div>
           )}
           <ul className="flex flex-col gap-2" aria-label={choosingStart ? 'Starting points' : 'Destinations'}>
@@ -487,9 +512,13 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
                 <li key={d.id}>
                   <Button
                     block
-                    className="justify-start text-left"
+                    className="justify-start text-left min-h-16"
                     onClick={() => (choosingStart ? chooseStart(d.id) : chooseDestination(d.id))}
                   >
+                    {(() => {
+                      const sprite = spriteFor(d);
+                      return sprite ? <PixelArt name={sprite} size={36} /> : null;
+                    })()}
                     {nodeDisplayName(graph, d)}
                   </Button>
                 </li>
@@ -523,7 +552,7 @@ function SimPanel({ sim, onChange }: { sim: WalkSimulator; onChange: () => void 
     <section
       data-no-gesture
       aria-label="Walk simulator"
-      className="mx-3 mb-2 rounded-2xl border border-warn p-2 bg-bg/90 flex flex-wrap gap-2 items-center"
+      className="mx-3 mb-2 border-[3px] border-warn p-2 bg-surface flex flex-wrap gap-2 items-center"
     >
       <span className="text-warn text-sm font-semibold w-full">
         Walk simulator: ARKit isn't available here.{' '}

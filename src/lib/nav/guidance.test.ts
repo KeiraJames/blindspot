@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildSampleMap } from '../../data/sampleMap';
+import { buildMapleHall } from '../../test/fixtures/mapleHall';
 import { DEFAULT_PREFERENCES, findRoute } from '../graph/astar';
 import { GraphIndex } from '../graph/graph';
 import { approachText, buildSteps, classifyTurn, routeSummary, stepText } from './guidance';
@@ -25,7 +25,7 @@ describe('classifyTurn', () => {
 });
 
 describe('buildSteps', () => {
-  const index = new GraphIndex(buildSampleMap());
+  const index = new GraphIndex(buildMapleHall());
 
   it('produces depart → turns → arrive on one floor', () => {
     const route = findRoute(index, 'g-entrance', 'g-kit')!;
@@ -89,21 +89,21 @@ describe('formatDistance', () => {
 
 describe('landmarks', () => {
   it('says "through" for doorways joining two rooms and "past" for hallway doors', () => {
-    const g = buildSampleMap();
+    const g = buildMapleHall();
     g.nodes = g.nodes.map((n) => (n.id === 'g-101d' ? { ...n, roomIds: ['r-hall', 'r-101'] } : n));
     const index = new GraphIndex(g);
     const route = findRoute(index, 'g-j1', 'g-j3')!;
     expect(stepText(buildSteps(index, route)[0]!, opts)).toBe(
       'Walk 20 meters through Room 101 door to East hallway.',
     );
-    const plain = new GraphIndex(buildSampleMap());
+    const plain = new GraphIndex(buildMapleHall());
     expect(stepText(buildSteps(plain, findRoute(plain, 'g-j1', 'g-j3')!)[0]!, opts)).toBe(
       'Walk 20 meters past Room 101 door to East hallway.',
     );
   });
 
   it('never names the destination as something to walk through', () => {
-    const index = new GraphIndex(buildSampleMap());
+    const index = new GraphIndex(buildMapleHall());
     const route = findRoute(index, 'g-entrance', 'f1-202')!;
     for (const s of buildSteps(index, route))
       expect(s.landmarks.map((l) => l.label)).not.toContain('Room 202');

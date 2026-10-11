@@ -1,5 +1,6 @@
 import { useMemo, useRef, type PointerEvent as RPointerEvent } from 'react';
 import type { GraphNode, MapGraph, NodeKind, Vec2 } from '../lib/graph/types';
+import { SpriteGroup, spriteFor } from './PixelArt';
 
 export interface FloorPlanProps {
   graph: MapGraph;
@@ -120,7 +121,7 @@ export function FloorPlan({
     >
       <rect data-bg="1" x={box.x} y={box.y} width={box.w} height={box.h} fill="var(--surface)" />
       {/* 1 m grid */}
-      <g stroke="var(--line)" strokeWidth={0.02} opacity={0.5}>
+      <g stroke="var(--grid)" strokeWidth={0.04}>
         {Array.from({ length: Math.ceil(box.w) + 1 }, (_, i) => Math.floor(box.x) + i).map((x) => (
           <line key={`gx${x}`} x1={x} x2={x} y1={box.y} y2={box.y + box.h} data-bg="1" />
         ))}
@@ -187,6 +188,9 @@ export function FloorPlan({
         const selected = selectedIds.includes(n.id);
         const highlighted = highlightIds.includes(n.id);
         const r = (n.kind === 'room' ? 0.45 : n.kind === 'junction' ? 0.25 : 0.35) * Math.max(1, scale * 0.8);
+        const sprite = n.kind === 'room' || n.kind === 'poi' ? spriteFor(n) : null;
+        // 12×12 sprite, about 1.6 m wide, centered on the place.
+        const px = (1.6 * Math.max(1, scale * 0.8)) / 12;
         return (
           <g
             key={n.id}
@@ -204,12 +208,16 @@ export function FloorPlan({
               stroke={selected ? 'var(--fg)' : highlighted ? 'var(--danger)' : 'none'}
               strokeWidth={selected || highlighted ? 0.15 * Math.max(1, scale) : 0}
             />
-            {showLabels && (n.kind !== 'junction' || selected) && (
+            {sprite && (
+              <SpriteGroup name={sprite} x={n.position.x - 6 * px} y={-n.position.y - 6 * px} pixel={px} />
+            )}
+            {showLabels && ((n.kind !== 'junction' && n.kind !== 'door') || selected || highlighted) && (
               <text
-                x={n.position.x + r + 0.15}
+                x={n.position.x + (sprite ? 6 * px : r) + 0.15}
                 y={-n.position.y + r * 0.4}
                 fontSize={scale * 0.9}
                 fill="var(--fg)"
+                fontFamily="var(--font-pixel)"
                 style={{ pointerEvents: 'none' }}
               >
                 {n.label}

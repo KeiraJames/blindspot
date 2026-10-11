@@ -1,4 +1,4 @@
-import { buildSampleMap, SAMPLE_MAP_ID, SAMPLE_MAP_NAME } from '../data/sampleMap';
+import { buildSampleHome, SAMPLE_MAP_ID, SAMPLE_MAP_NAME } from '../data/sampleHome';
 import { newId } from '../lib/graph/graph';
 import { emptyGraph, type MapGraph } from '../lib/graph/types';
 import { validateGraph } from '../lib/graph/validate';
@@ -41,14 +41,16 @@ export class LocalMapRepository implements MapRepository {
   private async seed() {
     if (this.seeded) return;
     this.seeded = true;
+    // Earlier builds seeded a two-floor dorm; the sample is now a four-room home.
+    await idb.del('maps', 'sample-maple-hall').catch(() => undefined);
     if (await this.read(SAMPLE_MAP_ID)) return;
-    const graph = buildSampleMap();
+    const graph = buildSampleHome();
     const now = Date.now();
     await this.write({
       summary: {
         id: SAMPLE_MAP_ID,
         name: SAMPLE_MAP_NAME,
-        description: 'Two-floor demo dorm',
+        description: 'Kitchen, bedroom, bathroom and closet',
         ownerId: LOCAL_UID,
         orgId: null,
         role: 'owner',

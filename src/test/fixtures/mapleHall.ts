@@ -1,11 +1,11 @@
-import { edgeLengthBetween } from '../lib/graph/graph';
-import type { EdgeKind, GraphEdge, GraphNode, MapGraph, NodeKind, PoiType } from '../lib/graph/types';
+import { edgeLengthBetween } from '../../lib/graph/graph';
+import type { EdgeKind, GraphEdge, GraphNode, MapGraph, NodeKind, PoiType } from '../../lib/graph/types';
 
 /**
- * Hand-authored two-floor dorm used for the Studio MVP, the web simulator and tests.
+ * Two-floor dorm with stairs, an elevator and exits. Test fixture for the routing engine.
  * It is not hardcoded routing: the navigator still runs A* over this graph like any other.
  */
-export function buildSampleMap(): MapGraph {
+export function buildMapleHall(): MapGraph {
   const floors = [
     { id: 'g', name: 'Ground floor', level: 0, elevation: 0 },
     { id: 'f1', name: 'Floor 1', level: 1, elevation: 3.2 },
@@ -101,6 +101,3 @@ export function buildSampleMap(): MapGraph {
 
   return graph;
 }
-
-export const SAMPLE_MAP_ID = 'sample-maple-hall';
-export const SAMPLE_MAP_NAME = 'Maple Hall (sample)';

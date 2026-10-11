@@ -157,8 +157,8 @@ final class ScanViewController: UIViewController, RoomCaptureViewDelegate, RoomC
         var config = primary ? UIButton.Configuration.filled() : UIButton.Configuration.gray()
         config.title = title
         config.cornerStyle = .large
-        config.baseBackgroundColor = primary ? UIColor(red: 1, green: 0.84, blue: 0.04, alpha: 1) : nil
-        config.baseForegroundColor = primary ? .black : .white
+        config.baseBackgroundColor = primary ? UIColor(red: 0.76, green: 0.09, blue: 0.36, alpha: 1) : UIColor(red: 1, green: 0.94, blue: 0.965, alpha: 1)
+        config.baseForegroundColor = primary ? .white : UIColor(red: 0.24, green: 0.06, blue: 0.16, alpha: 1)
         config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { attrs in
             var a = attrs
             a.font = UIFont.preferredFont(forTextStyle: .title3).withTraits(.traitBold)

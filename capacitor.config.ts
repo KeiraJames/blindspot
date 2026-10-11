@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   ios: {
     // The AR camera view sits behind a transparent webview; see ARNavPlugin.swift.
-    backgroundColor: '#000000',
+    backgroundColor: '#fff0f6',
     contentInset: 'never',
     scrollEnabled: false,
     limitsNavigationsToAppBoundDomains: false,

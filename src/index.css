@@ -1,51 +1,46 @@
 @import 'tailwindcss';
+@import '@fontsource/pixelify-sans/500.css';
+@import '@fontsource/pixelify-sans/700.css';
 
 /*
  * Accessibility tokens. Default is a dark, high-legibility theme; light follows the
  * system; [data-contrast='high'] pushes every pair past WCAG AAA (7:1).
  */
+/*
+ * Light pink pixel theme. Every text/background pair meets WCAG AA (body text ≥ 7:1,
+ * accent buttons 5.8:1). [data-contrast='high'] switches to black and yellow for users who
+ * need maximum contrast.
+ */
 :root {
-  --bg: #0b0d12;
-  --surface: #161a22;
-  --surface-2: #202634;
-  --fg: #f4f6fa;
-  --muted: #b4bccb;
-  --line: #3a4356;
-  --accent: #ffd60a;
-  --accent-fg: #0b0d12;
-  --danger: #ff6b6b;
-  --danger-fg: #000000;
-  --warn: #ffb347;
-  --ok: #4ade80;
-  --focus: #5eb1ff;
+  --bg: #fff0f6;
+  --bg-dots: #ffe3ef;
+  --surface: #fff9fc;
+  --surface-2: #ffd6e7;
+  --fg: #3d0f2a;
+  --muted: #7d2e57;
+  --line: #3d0f2a;
+  --grid: #f7bfd6;
+  --accent: #c2185b;
+  --accent-fg: #ffffff;
+  --danger: #a4161a;
+  --danger-fg: #ffffff;
+  --warn: #8a4b00;
+  --ok: #1e7a3c;
+  --focus: #6b21a8;
   --font-scale: 1;
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-contrast='high']) {
-    --bg: #f7f8fb;
-    --surface: #ffffff;
-    --surface-2: #eceff5;
-    --fg: #0d1017;
-    --muted: #46505f;
-    --line: #c4cad6;
-    --accent: #1d4ed8;
-    --accent-fg: #ffffff;
-    --danger: #b91c1c;
-    --danger-fg: #ffffff;
-    --warn: #9a5b00;
-    --ok: #15803d;
-    --focus: #1d4ed8;
-  }
+  --pixel: 4px;
+  color-scheme: light;
 }
 
 :root[data-contrast='high'] {
   --bg: #000000;
+  --bg-dots: #000000;
   --surface: #000000;
   --surface-2: #111111;
   --fg: #ffffff;
   --muted: #ffffff;
   --line: #ffffff;
+  --grid: #444444;
   --accent: #ffff00;
   --accent-fg: #000000;
   --danger: #ff8080;
@@ -53,6 +48,7 @@
   --warn: #ffd080;
   --ok: #80ff80;
   --focus: #00ffff;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -69,6 +65,14 @@
   --color-warn: var(--warn);
   --color-ok: var(--ok);
   --color-focus: var(--focus);
+  --color-grid: var(--grid);
+  /* Pixel look: square corners everywhere except fully round controls. */
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+  --font-pixel: 'Pixelify Sans', ui-monospace, monospace;
 }
 
 html {
@@ -80,7 +84,15 @@ html {
 
 body {
   margin: 0;
-  background: var(--bg);
+  /* Faint 8px pixel checkerboard. */
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(45deg, var(--bg-dots) 25%, transparent 25%, transparent 75%, var(--bg-dots) 75%),
+    linear-gradient(45deg, var(--bg-dots) 25%, transparent 25%, transparent 75%, var(--bg-dots) 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    8px 8px;
   color: var(--fg);
   font-size: calc(1.0625rem * var(--font-scale));
   line-height: 1.45;
@@ -92,6 +104,32 @@ body {
 body.ar-active,
 body.ar-active #root {
   background: transparent !important;
+  background-image: none !important;
+}
+
+/* Headings use the pixel font; body text stays in the system font for legibility. */
+h1,
+h2,
+h3,
+.font-pixel {
+  font-family: var(--font-pixel);
+  letter-spacing: 0.01em;
+}
+
+/* Chunky pixel frame with a hard offset shadow. */
+.pixel-frame {
+  border: 3px solid var(--line);
+  box-shadow: var(--pixel) var(--pixel) 0 var(--line);
+}
+
+.pixel-press:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--line);
+}
+
+/* Headings focused programmatically for VoiceOver announcements don't need a visible ring. */
+[tabindex='-1']:focus {
+  outline: none;
 }
 
 :focus-visible {

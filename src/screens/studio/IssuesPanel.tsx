@@ -24,7 +24,7 @@ export function IssuesPanel({
           <li
             key={i}
             className={cx(
-              'rounded-xl border p-3 flex flex-col gap-2',
+              'border-[3px] bg-surface p-3 flex flex-col gap-2',
               issue.severity === 'error' ? 'border-danger' : 'border-warn',
             )}
           >

@@ -177,7 +177,7 @@ public class PathSenseARNavPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegat
         gestureOverlay = nil
         if let webView = bridge?.webView {
             webView.isOpaque = true
-            webView.backgroundColor = .black
+            webView.backgroundColor = UIColor(red: 1, green: 0.94, blue: 0.965, alpha: 1)
         }
     }
 
@@ -295,8 +295,9 @@ public class PathSenseARNavPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegat
     static func buildGuide(points: [SCNVector3]) -> [SCNNode] {
         guard points.count >= 2 else { return [] }
         let material = SCNMaterial()
-        material.diffuse.contents = UIColor(red: 1, green: 0.84, blue: 0.04, alpha: 0.9)
-        material.emission.contents = UIColor(red: 1, green: 0.84, blue: 0.04, alpha: 1)
+        // Bright pink stands out against most indoor surfaces.
+        material.diffuse.contents = UIColor(red: 1, green: 0.31, blue: 0.6, alpha: 0.9)
+        material.emission.contents = UIColor(red: 1, green: 0.31, blue: 0.6, alpha: 1)
         material.lightingModel = .constant
         var nodes: [SCNNode] = []
         for i in 0..<(points.count - 1) {

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { buildSampleMap } from '../../data/sampleMap';
+import { buildMapleHall } from '../../test/fixtures/mapleHall';
 import { connect, mergeNodes, removeNode } from './graph';
 import { emptyGraph } from './types';
 import { validateGraph } from './validate';
 
 describe('validateGraph', () => {
   it('accepts the sample map with no errors or warnings', () => {
-    const r = validateGraph(buildSampleMap());
+    const r = validateGraph(buildMapleHall());
     expect(r.ok).toBe(true);
     expect(r.issues).toEqual([]);
     expect(r.components).toHaveLength(1);
@@ -17,7 +17,7 @@ describe('validateGraph', () => {
   });
 
   it('detects disconnected floors', () => {
-    const g = buildSampleMap();
+    const g = buildMapleHall();
     g.edges = g.edges.filter((e) => e.kind !== 'stairs' && e.kind !== 'elevator');
     const r = validateGraph(g);
     expect(r.issues.map((i) => i.code)).toContain('disconnected');
@@ -25,7 +25,7 @@ describe('validateGraph', () => {
   });
 
   it('detects unmatched doors and isolated nodes', () => {
-    const g = buildSampleMap();
+    const g = buildMapleHall();
     g.nodes.push({ id: 'dx', kind: 'door', floorId: 'g', position: { x: 30, y: 0 }, label: 'Mystery door' });
     const r = validateGraph(g);
     expect(r.issues.find((i) => i.code === 'unmatched_door')?.nodeIds).toEqual(['dx']);
@@ -33,7 +33,7 @@ describe('validateGraph', () => {
   });
 
   it('errors on dangling edges and flat edges across floors', () => {
-    let g = buildSampleMap();
+    let g = buildMapleHall();
     g = removeNode(g, 'g-kit');
     g.edges.push({ id: 'bad', from: 'g-kitd', to: 'ghost', kind: 'walk', length: 1 });
     g = connect(g, 'g-lobby', 'f1-lounge', 'walk');
@@ -45,7 +45,7 @@ describe('validateGraph', () => {
   });
 
   it('warns when no exit exists', () => {
-    const g = buildSampleMap();
+    const g = buildMapleHall();
     g.nodes = g.nodes.map((n) => ({
       ...n,
       exterior: false,
@@ -57,7 +57,7 @@ describe('validateGraph', () => {
 
 describe('graph edits', () => {
   it('mergeNodes rewires edges and removes duplicates', () => {
-    let g = buildSampleMap();
+    let g = buildMapleHall();
     g = mergeNodes(g, 'g-j2', 'g-kitd');
     expect(g.nodes.find((n) => n.id === 'g-kitd')).toBeUndefined();
     expect(g.edges.some((e) => e.from === 'g-kitd' || e.to === 'g-kitd')).toBe(false);
@@ -68,7 +68,7 @@ describe('graph edits', () => {
   });
 
   it('connect does not duplicate edges', () => {
-    const g = buildSampleMap();
+    const g = buildMapleHall();
     expect(connect(g, 'g-lobby', 'g-j1').edges.length).toBe(g.edges.length);
   });
 });

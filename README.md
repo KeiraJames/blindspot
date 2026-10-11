@@ -16,9 +16,9 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. Without Firebase settings the app runs in **local-only mode**, with a two-floor sample building (Maple Hall). In a browser:
+Open http://localhost:5173. Without Firebase settings the app runs in **local-only mode**, with a sample home of four places: Kitchen, Bedroom, Bathroom and Closet. The theme is light pink with pixel art. In a browser:
 
-- **Navigate**: pick a start and a destination, press Start, then **Auto-walk** in the walk simulator. You'll hear every prompt (browser speech) and see the route. **Wander off** tests rerouting.
+- **Navigate**: pick a start and a destination (for example Kitchen to Closet), press Start, then **Auto-walk** in the walk simulator. You'll hear every prompt (browser speech) and see the route. **Wander off** tests rerouting.
 - **Scan a room**: the scanner is simulated in development and produces a plausible room.
 - **Map Studio**: place scans by snapping doors, edit places, check for problems, publish versions, and view the building in 3D.
 
@@ -60,6 +60,9 @@ src/
   plugins/        TypeScript contracts for the native plugins, with web fallbacks
   firebase/       Firebase init, auth, repositories (Firebase and local-only)
   screens/        Home, Navigate, Scan, Map Studio, Share, Settings, Practice, About
+  components/PixelArt.tsx   Pixel-art sprites (house, kitchen, bedroom, bathroom, closet)
+  data/sampleHome.ts        The four-room sample home
+  test/fixtures/  Two-floor dorm used only by engine tests (stairs, elevator, exits)
 native/pathsense-native/   Swift plugins (Swift package, auto-registered by `cap sync`)
 ios/              Capacitor iOS project (SPM)
 functions/        Cloud Functions: invites, version validation, org sync, cleanup, TTS proxy

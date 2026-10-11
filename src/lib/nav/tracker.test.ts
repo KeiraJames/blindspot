@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildSampleMap } from '../../data/sampleMap';
+import { buildMapleHall } from '../../test/fixtures/mapleHall';
 import { findRoute } from '../graph/astar';
 import { bearing } from '../graph/geometry';
 import { GraphIndex } from '../graph/graph';
@@ -7,7 +7,7 @@ import type { Vec2 } from '../graph/types';
 import { buildSteps } from './guidance';
 import { RouteTracker, type MapPose, type TrackerEvent } from './tracker';
 
-const index = new GraphIndex(buildSampleMap());
+const index = new GraphIndex(buildMapleHall());
 
 function setup(from: string, to: string) {
   const route = findRoute(index, from, to)!;
