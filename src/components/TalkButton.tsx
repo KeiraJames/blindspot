@@ -33,11 +33,12 @@ export function TalkButton() {
         aria-label={listening ? 'Listening' : 'Talk. Say what you want to do.'}
         className={cx(
           'pointer-events-auto pixel-frame pixel-press mx-auto w-full max-w-2xl min-h-20 flex items-center justify-center gap-3 bg-accent text-accent-fg',
-          listening && 'animate-pulse',
         )}
       >
-        <PixelArt name="mic" size={36} />
-        <span className="font-pixel text-2xl">{listening ? 'Listening…' : 'Talk'}</span>
+        <PixelArt name="mic" size={36} className={listening ? 'animate-pulse' : undefined} />
+        <span className={cx('font-pixel text-2xl', listening && 'animate-pulse')}>
+          {listening ? 'Listening…' : 'Talk'}
+        </span>
       </button>
     </div>
   );

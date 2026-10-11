@@ -13,6 +13,7 @@ export function Screen({
   children,
   className,
   wide,
+  logo,
 }: {
   title: string;
   back?: string | true;
@@ -20,6 +21,8 @@ export function Screen({
   children: ReactNode;
   className?: string;
   wide?: boolean;
+  /** Show the app logo beside the title. */
+  logo?: boolean;
 }) {
   const h1 = useRef<HTMLHeadingElement>(null);
   const navigate = useNavigate();
@@ -43,6 +46,7 @@ export function Screen({
           <h1 ref={h1} tabIndex={-1} className="text-2xl font-bold flex-1 truncate outline-none">
             {title}
           </h1>
+          {logo && <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" className="h-9 w-auto shrink-0" />}
           {actions}
         </div>
       </header>

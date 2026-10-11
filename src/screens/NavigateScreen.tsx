@@ -2,7 +2,6 @@ import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FloorPlan } from '../components/FloorPlan';
 import { GestureSurface } from '../components/GestureSurface';
-import { MicButton } from '../components/MicButton';
 import { NavMap } from '../components/NavMap';
 import { PixelArt, spriteFor } from '../components/PixelArt';
 import { Screen } from '../components/Screen';
@@ -539,9 +538,7 @@ function Navigator({
         </Card>
       )}
       {state.error && <ErrorBox error={state.error} />}
-      {choosingStart ? (
-        <MicButton label="Say where you are" prompt="Which room are you in?" />
-      ) : (
+      {!choosingStart && (
         <>
           <p className="text-lg">
             Starting from <strong>{controller.label(state.startId)}</strong>.{' '}
@@ -553,12 +550,11 @@ function Navigator({
               Change
             </button>
           </p>
-          <MicButton label="Say where to go" prompt="Where do you want to go?" />
         </>
       )}
 
       <h2 className="text-xl font-bold mt-2">
-        {choosingStart ? 'Or pick where you are' : 'Or pick a place'}
+        {choosingStart ? 'Say or pick where you are' : 'Say or pick where to go'}
       </h2>
       {controller.destinations.length > 6 && (
         <Field

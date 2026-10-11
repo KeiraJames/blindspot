@@ -33,8 +33,7 @@ export function HomeScreen() {
   }, [status, ready]);
 
   return (
-    <Screen title="BlindSpöt">
-      <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" className="mx-auto w-48 h-auto" />
+    <Screen title="BlindSpöt" logo>
       <div className="pixel-frame bg-surface-2 p-4 flex items-center gap-4">
         <PixelArt name="house" size={56} />
         <p className="text-lg">{status}</p>
