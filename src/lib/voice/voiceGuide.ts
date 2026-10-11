@@ -59,6 +59,21 @@ export class VoiceGuide {
     void this.pump();
   }
 
+  /** Resolves once nothing is being said or waiting to be said. */
+  async whenIdle(): Promise<void> {
+    while (this.busy) {
+      const current = this.speaking ?? this.queue.at(-1);
+      if (!current) break;
+      await new Promise<void>((r) => {
+        const prev = current.resolve;
+        current.resolve = () => {
+          prev();
+          r();
+        };
+      });
+    }
+  }
+
   get busy(): boolean {
     return this.speaking !== null || this.queue.length > 0;
   }

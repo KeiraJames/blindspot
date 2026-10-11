@@ -13,7 +13,10 @@ export type Earcon =
   | 'confirm'
   | 'cancel'
   | 'floorChange'
-  | 'offRoute';
+  | 'offRoute'
+  | 'listening'
+  | 'heard'
+  | 'notUnderstood';
 
 type Tone = {
   f: number;
@@ -53,6 +56,21 @@ const SPECS: Record<Earcon, Tone[]> = {
   ],
   cancel: [{ f: 330, t: 0, d: 0.15, type: 'triangle' }],
   floorChange: [{ f: 400, f2: 900, t: 0, d: 0.4, type: 'triangle' }],
+  // Rising and bright: "I'm listening, go ahead."
+  listening: [
+    { f: 660, t: 0, d: 0.07, gain: 0.35 },
+    { f: 990, t: 0.07, d: 0.12, gain: 0.4 },
+  ],
+  // Falling and soft: "Got it."
+  heard: [
+    { f: 990, t: 0, d: 0.06, gain: 0.3 },
+    { f: 740, t: 0.06, d: 0.1, gain: 0.3 },
+  ],
+  // Low and gentle: "Sorry, I didn't catch that."
+  notUnderstood: [
+    { f: 392, t: 0, d: 0.12, type: 'triangle', gain: 0.35 },
+    { f: 330, t: 0.16, d: 0.18, type: 'triangle', gain: 0.35 },
+  ],
   offRoute: [
     { f: 740, t: 0, d: 0.12, type: 'triangle' },
     { f: 554, t: 0.14, d: 0.12, type: 'triangle' },

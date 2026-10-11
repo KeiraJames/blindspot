@@ -18,6 +18,9 @@ const HAPTIC_FOR: Record<Cue, HapticCue> = {
   cancel: 'cancel',
   floorChange: 'floorChange',
   offRoute: 'trackingLost',
+  listening: 'listening',
+  heard: 'heard',
+  notUnderstood: 'notUnderstood',
 };
 
 const initial = useSettings.getState();
@@ -96,13 +99,22 @@ export async function ask(
   contextualStrings: string[] = [],
   timeoutMs = 8000,
 ): Promise<string> {
-  voice.stop();
-  await say(prompt);
-  playEarcon('confirm');
+  if (prompt) {
+    voice.stop();
+    await say(prompt);
+  } else {
+    // Let whatever the app is already saying finish, then listen.
+    await voice.whenIdle();
+  }
+  // Mic open: a rising tone and a soft buzz mean "your turn".
+  void cue('listening');
   voice.hold();
   try {
     const { transcript } = await Speech.listen({ timeoutMs, silenceMs: 1000, contextualStrings });
-    return cleanTranscript(transcript);
+    const heard = cleanTranscript(transcript);
+    // Mic closed: "got it", or a gentle "didn't catch that".
+    void cue(heard ? 'heard' : 'notUnderstood');
+    return heard;
   } finally {
     voice.release();
   }

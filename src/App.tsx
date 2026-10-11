@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { createHashRouter, Navigate, Outlet, RouterProvider } from 'react-router-dom';
 import { LiveRegion } from './components/LiveRegion';
 import { SafetyNotice } from './components/SafetyNotice';
+import { TalkButton } from './components/TalkButton';
 import { Spinner } from './components/ui';
 import { HomeScreen } from './screens/HomeScreen';
 import { usePlace } from './state/place';
@@ -40,6 +41,7 @@ function Root() {
       {loaded ? (
         <Suspense fallback={<Spinner />}>
           <Outlet />
+          <TalkButton />
         </Suspense>
       ) : (
         <Spinner />

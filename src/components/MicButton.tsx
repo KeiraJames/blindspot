@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ask, say } from '../lib/feedback';
+import { talk, useAssistant } from '../lib/voice/assistant';
 import { PixelArt } from './PixelArt';
 import { cx } from './ui';
 
@@ -9,6 +10,8 @@ const FOLLOW_UPS = 2;
 /**
  * The main way to answer the app: a large button that asks `prompt` out loud, plays a tone,
  * listens, and hands back what was said. Big enough to find without looking.
+ *
+ * Without `onHeard`, the answer goes to the voice companion (the screen's own handler first).
  *
  * Like a conversation, `onHeard` can return a follow-up question ("Sorry, I didn't catch that.
  * Where do you want to go?"); the app then asks it and listens again straight away.
@@ -23,15 +26,18 @@ export function MicButton({
   label: string;
   prompt: string;
   contextualStrings?: string[];
-  onHeard: (text: string) => string | void;
+  onHeard?: (text: string) => string | void;
   className?: string;
 }) {
-  const [listening, setListening] = useState(false);
+  const [asking, setListening] = useState(false);
+  const companion = useAssistant((a) => a.listening);
+  const listening = asking || (!onHeard && companion);
   return (
     <button
       type="button"
       disabled={listening}
       onClick={async () => {
+        if (!onHeard) return void talk(prompt);
         setListening(true);
         try {
           let question = prompt;

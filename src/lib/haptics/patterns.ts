@@ -32,7 +32,10 @@ export type HapticCue =
   | 'trackingLost'
   | 'confirm'
   | 'cancel'
-  | 'floorChange';
+  | 'floorChange'
+  | 'listening'
+  | 'heard'
+  | 'notUnderstood';
 
 const t = (time: number, intensity: number, sharpness: number): HapticEvent => ({
   type: 'transient',
@@ -71,6 +74,12 @@ export const HAPTIC_PATTERNS: Record<HapticCue, HapticPattern> = {
     name: 'floorChange',
     events: [t(0, 0.4, 0.3), t(0.15, 0.6, 0.45), t(0.3, 0.8, 0.6), t(0.45, 1, 0.75)],
   },
+  // "Your turn to talk": a light tap that swells into a soft hum, felt as the mic opening.
+  listening: { name: 'listening', events: [t(0, 0.5, 0.3), c(0.06, 0.18, 0.45, 0.2)] },
+  // "Got it": one gentle, rounded tap as the mic closes.
+  heard: { name: 'heard', events: [c(0, 0.06, 0.6, 0.35)] },
+  // "Didn't catch that": two soft, slow taps.
+  notUnderstood: { name: 'notUnderstood', events: [t(0, 0.5, 0.2), t(0.28, 0.4, 0.2)] },
 };
 
 export function patternDuration(p: HapticPattern): number {

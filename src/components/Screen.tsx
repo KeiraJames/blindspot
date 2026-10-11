@@ -49,7 +49,8 @@ export function Screen({
       <main
         id="main"
         className={cx(
-          'mx-auto w-full flex-1 px-4 py-4 safe-bottom flex flex-col gap-4',
+          // Room at the bottom for the Talk button.
+          'mx-auto w-full flex-1 px-4 pt-4 pb-32 flex flex-col gap-4',
           wide ? 'max-w-6xl' : 'max-w-2xl',
           className,
         )}

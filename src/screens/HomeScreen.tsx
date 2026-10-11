@@ -2,7 +2,10 @@ import { useEffect } from 'react';
 import { PixelArt } from '../components/PixelArt';
 import { Screen } from '../components/Screen';
 import { LinkButton } from '../components/ui';
+import { canAutoListen } from '../components/TalkButton';
 import { announce } from '../lib/feedback';
+import { startConversation } from '../lib/voice/assistant';
+import { useSettings } from '../state/settings';
 import { useActiveMap } from '../state/place';
 
 let introduced = false;
@@ -13,17 +16,25 @@ export function HomeScreen() {
     ? `You have no rooms yet, so the ${sampleName} practice map is loaded. Add a room to make your own.`
     : `Your home has ${graph.rooms.length} ${graph.rooms.length === 1 ? 'room' : 'rooms'}.`;
 
+  const ready = useSettings((s) => s.safetyAcknowledged);
+
   useEffect(() => {
-    // Speak the menu once per launch, not every time you come back.
-    if (introduced) return;
+    // Greet once per launch (after the safety notice), not every time you come back.
+    if (introduced || !ready) return;
     introduced = true;
-    void announce(
-      `BlindSpöt. ${status} Choose Go somewhere, Look around, Add a room, My rooms, Settings, or How to use.`,
-    );
-  }, [status]);
+    if (canAutoListen())
+      startConversation(
+        `Hi, it's BlindSpöt. ${status} What would you like to do? You can say go somewhere, look around, or add a room.`,
+      );
+    else
+      void announce(
+        `BlindSpöt. ${status} Choose Go somewhere, Look around, Add a room, My rooms, Settings, or How to use. Or press Talk and say what you want.`,
+      );
+  }, [status, ready]);
 
   return (
     <Screen title="BlindSpöt">
+      <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" className="mx-auto w-48 h-auto" />
       <div className="pixel-frame bg-surface-2 p-4 flex items-center gap-4">
         <PixelArt name="house" size={56} />
         <p className="text-lg">{status}</p>

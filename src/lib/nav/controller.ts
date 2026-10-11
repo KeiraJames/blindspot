@@ -206,11 +206,7 @@ export class NavigationController {
     if (!route) {
       const why = this.opts.prefs.avoidStairs ? ' without stairs' : '';
       this.set({ route: null, steps: [], error: `No route found to ${this.label(dest)}${why}.` });
-      this.cue(
-        'cancel',
-        `No route found to ${this.label(dest)}${why}. Check the map in Map Studio.`,
-        'normal',
-      );
+      this.cue('cancel', `No route found to ${this.label(dest)}${why}. Try a different place.`, 'normal');
       return false;
     }
     const steps = buildSteps(this.index, route);
@@ -225,7 +221,7 @@ export class NavigationController {
     });
     if (announce && this.state.phase === 'preview') {
       const summary = routeSummary(steps, route, this.opts.phrase, this.label(dest));
-      this.speak(`${summary} ${stepText(steps[0]!, this.opts.phrase)} Press Start when you're ready.`);
+      this.speak(`${summary} ${stepText(steps[0]!, this.opts.phrase)} Say start when you're ready.`);
     }
     return true;
   }

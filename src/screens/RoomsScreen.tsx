@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PixelArt, spriteFor } from '../components/PixelArt';
 import { Screen } from '../components/Screen';
+import { useScreenVoice } from '../components/TalkButton';
 import { Button, Card, Field, LinkButton } from '../components/ui';
 import { announce, ask, cue, say } from '../lib/feedback';
 import { neighbours } from '../lib/graph/rooms';
+import { matchPlace } from '../lib/voice/commands';
+import { cleanTranscript } from '../lib/feedback';
 import { usePlace } from '../state/place';
 
 function connections(names: string[]): string {
@@ -28,6 +31,35 @@ export default function RoomsScreen() {
     void announce(`My rooms. ${summary}`);
     // Announce once on open, not on every edit.
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Voice: "rename the kitchen" → "What should Kitchen be called now?" → "Pantry".
+  const renaming = useRef<{ id: string; name: string } | null>(null);
+  useScreenVoice({
+    hints: ['rename', 'list my rooms', ...graph.rooms.map((r) => r.name)],
+    handle: (heard) => {
+      const target = renaming.current;
+      if (target) {
+        renaming.current = null;
+        const next = cleanTranscript(heard);
+        if (/^(cancel|never ?mind|no)\b/i.test(heard)) return (void say('Okay, nothing changed.'), true);
+        void renameRoom(target.id, next).then(() => cue('confirm', `Renamed ${target.name} to ${next}.`));
+        return true;
+      }
+      if (/\b(list|read|what|which)\b.*\brooms?\b|\bmy rooms\b/i.test(heard))
+        return (void say(summary), true);
+      const m = /\b(?:rename|change the name of|call)\s+(.+)$/i.exec(heard);
+      if (m) {
+        const room = matchPlace(
+          m[1]!,
+          graph.rooms.map((r) => ({ id: r.id, label: r.name })),
+        );
+        if (!room) return `I couldn't find ${m[1]}. ${summary} Which room should I rename?`;
+        renaming.current = { id: room.id, name: room.label };
+        return `What should ${room.label} be called now?`;
+      }
+      return false;
+    },
+  });
 
   const renameByVoice = async (roomId: string, oldName: string) => {
     try {

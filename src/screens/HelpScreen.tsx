@@ -19,10 +19,12 @@ const SECTIONS: { title: string; sprite: SpriteName; lines: string[] }[] = [
     title: 'Talking to the app',
     sprite: 'mic',
     lines: [
-      'Press the big pink button.',
-      'Wait for the little beep.',
-      'Then say your answer, like “kitchen”.',
-      'The app tells you what it heard.',
+      'Press Talk at the bottom of any screen.',
+      'A rising beep and a soft buzz mean: your turn to talk.',
+      'Say what you want, like “take me to the stage” or “look around”.',
+      'A falling beep means it heard you. A low beep means it didn’t.',
+      'Take your time. It waits until you finish.',
+      'Say “help” to hear what you can say.',
     ],
   },
   {
@@ -30,9 +32,8 @@ const SECTIONS: { title: string; sprite: SpriteName; lines: string[] }[] = [
     sprite: 'arrow',
     lines: [
       'Press Go somewhere.',
-      'Press the big button and say where you are.',
-      'Press it again and say where you want to go.',
-      'Press Start and walk slowly.',
+      'Say where you are, then where you want to go.',
+      'Say “start” and walk slowly.',
       'The app tells you when to turn.',
     ],
   },

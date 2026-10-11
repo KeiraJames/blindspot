@@ -25,7 +25,7 @@ describe('NavigationController', () => {
     c.setStart('g-entrance');
     c.setDestination('g-kit');
     expect(c.state.phase).toBe('preview');
-    expect(said.at(-1)).toMatch(/^Route to Kitchen, Ground floor: .*Press Start when you're ready\.$/);
+    expect(said.at(-1)).toMatch(/^Route to Kitchen, Ground floor: .*Say start when you're ready\.$/);
   });
 
   it('finds destinations by spoken text', () => {

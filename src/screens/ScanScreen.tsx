@@ -3,10 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MicButton } from '../components/MicButton';
 import { Screen } from '../components/Screen';
+import { canAutoListen, useScreenVoice } from '../components/TalkButton';
 import { Button, Card, Field, LinkButton } from '../components/ui';
-import { announce, ask, cue, say } from '../lib/feedback';
+import { announce, cleanTranscript, cue, say } from '../lib/feedback';
 import { runPracticeScan, type PracticeRun } from '../lib/scan/practice';
 import type { ScanResult } from '../lib/scan/types';
+import { inConversation, parseAppCommand, talk, type Reply } from '../lib/voice/assistant';
 import { Scan, type ScanInstruction, type ScanProgress } from '../plugins/scan';
 import { usePlace } from '../state/place';
 
@@ -58,8 +60,15 @@ export default function ScanScreen() {
   useEffect(() => {
     void Scan.isSupported().then((s) => {
       setSupport(s);
-      if (!s.supported)
-        void say(`${s.reason} You can try a practice scan to learn how it works. Nothing is saved.`);
+      const listen = canAutoListen() && inConversation();
+      if (!s.supported) {
+        const text = `${s.reason} You can try a practice scan to learn how it works. Nothing is saved.`;
+        if (listen) void talk(`${text} Would you like to practice?`);
+        else void say(text);
+      } else if (listen)
+        void talk(
+          `Let's add a room. ${HOW_TO} Say scan when you're in the door, or say practice to try it first.`,
+        );
       else
         void announce(
           `Add a room. ${HOW_TO} Press Start scanning when you're in the door. Or press Practice first to try it without saving.`,
@@ -73,26 +82,57 @@ export default function ScanScreen() {
 
   const signText = (r: ScanResult) => r.landmarks.find((l) => l.kind === 'room_number' && l.text)?.text;
 
-  /** Ask for the room's name out loud; loop back here from "Say it again". */
-  const askName = async (r: ScanResult, intro = '') => {
+  /** Ask for the room's name out loud; the answer comes back through `handleVoice`. */
+  const askName = (r: ScanResult, intro = '') => {
     const sign = signText(r);
     const hint = sign ? ` I saw a sign that says ${sign}.` : '';
-    try {
-      const heard = await ask(`${intro}What is this room called?${hint}`, [
-        ...COMMON_ROOMS,
-        ...(sign ? [`Room ${sign}`] : []),
-      ]);
-      if (heard) {
-        setName(heard);
-        setTyped(heard);
-        void say(`I heard ${heard}. Press Save, or Say it again.`);
-      } else {
-        void say("I didn't hear a name. Press Say the name to try again, or type it.");
-      }
-    } catch {
-      void say('Listening is not available. Type the room name instead.');
-    }
+    void talk(`${intro}What is this room called?${hint}`);
   };
+
+  /**
+   * What's said on this screen, as a conversation: "practice" or "scan" to begin, "done" while
+   * scanning, then the room's name, read back and saved when you say yes.
+   */
+  const heardName = useRef('');
+  const handleVoice = (heard: string): Reply => {
+    const t = heard.toLowerCase();
+    if (phase === 'ready') {
+      if (/\bpractice\b/.test(t) || (support && !support.supported && /^(yes|yeah|sure|ok)/.test(t)))
+        return (void start(true), true);
+      if (/\b(scan|start|begin|go|real|yes)\b/.test(t)) return (void start(false), true);
+      return false;
+    }
+    if (phase === 'capturing') {
+      if (/\b(cancel|stop scanning|never ?mind)\b/.test(t)) return (void cancelCapture(), true);
+      if (/\b(done|finish|finished|that'?s it|stop)\b/.test(t)) return (void finishCapture(), true);
+      return false;
+    }
+    if (phase === 'naming') {
+      if (
+        heardName.current &&
+        /^(yes|yeah|yep|save|save it|correct|that'?s right|right|sure|ok|okay)\b/.test(t)
+      ) {
+        void save(heardName.current);
+        return true;
+      }
+      if (/^(no|nope|wrong|again|say it again)\b/.test(t)) return 'Okay. What is this room called?';
+      if (parseAppCommand(heard).type !== 'unknown' && parseAppCommand(heard).type !== 'go') return false;
+      const cleaned = cleanTranscript(heard);
+      heardName.current = cleaned;
+      setName(cleaned);
+      setTyped(cleaned);
+      return `I heard ${cleaned}. Should I save it?`;
+    }
+    if (phase === 'saved' && /\b(another|again|next|scan)\b/.test(t)) {
+      setPhase('ready');
+      return 'Okay. Say practice for a practice scan, or scan to scan a real room.';
+    }
+    return false;
+  };
+  useScreenVoice({
+    handle: (h) => handleVoice(h),
+    hints: ['practice', 'scan', 'done', 'save', 'yes', 'no', ...COMMON_ROOMS],
+  });
 
   const onProgress = (p: ScanProgress) =>
     setProgress((prev) => {
@@ -152,8 +192,8 @@ export default function ScanScreen() {
   const finishCapture = () => (practice ? practiceRun.current?.finish() : void Scan.finishCapture());
   const cancelCapture = () => (practice ? practiceRun.current?.cancel() : void Scan.cancelCapture());
 
-  const save = async () => {
-    const finalName = (typed || name).trim();
+  const save = async (spoken?: string) => {
+    const finalName = (spoken ?? (typed || name)).trim();
     if (!result || !finalName) {
       void say('The room needs a name first.');
       return;
@@ -242,17 +282,7 @@ export default function ScanScreen() {
 
       {phase === 'naming' && result && (
         <>
-          <MicButton
-            label={name ? 'Say it again' : 'Say the name'}
-            prompt="What is this room called?"
-            contextualStrings={COMMON_ROOMS}
-            onHeard={(heard) => {
-              if (!heard) return "Sorry, I didn't catch that. What is this room called?";
-              setName(heard);
-              setTyped(heard);
-              void say(`I heard ${heard}. Press Save, or Say it again.`);
-            }}
-          />
+          <MicButton label={name ? 'Say it again' : 'Say the name'} prompt="What is this room called?" />
           {name && (
             <p className="text-2xl font-bold text-center" aria-live="polite">
               “{name}”

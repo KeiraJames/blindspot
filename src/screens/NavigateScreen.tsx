@@ -7,7 +7,16 @@ import { NavMap } from '../components/NavMap';
 import { PixelArt, spriteFor } from '../components/PixelArt';
 import { Screen } from '../components/Screen';
 import { Button, Card, cx, ErrorBox, Field } from '../components/ui';
-import { announce, ask, cue, say, voice } from '../lib/feedback';
+import { announce, cue, say, voice } from '../lib/feedback';
+import { canAutoListen, useScreenVoice } from '../components/TalkButton';
+import {
+  inConversation,
+  parseAppCommand,
+  takePendingPlace,
+  talk,
+  useAssistant,
+  type Reply,
+} from '../lib/voice/assistant';
 import { DEFAULT_PREFERENCES } from '../lib/graph/astar';
 import { nodeDisplayName } from '../lib/graph/graph';
 import type { MapGraph } from '../lib/graph/types';
@@ -23,6 +32,8 @@ import { ARNav, type ARPose } from '../plugins/arnav';
 import { Vision } from '../plugins/vision';
 import { SAMPLES, useActiveMap } from '../state/place';
 import { useSettings, type SampleId, type Settings } from '../state/settings';
+
+const NAV_HINTS = ['where am I', 'repeat', 'pause', 'resume', 'stop', 'start'];
 
 function navOptions(s: Settings): NavOptions {
   return {
@@ -76,7 +87,7 @@ function Navigator({
   );
   const [state, setState] = useState<NavState>(controller.state);
   const [query, setQuery] = useState('');
-  const [listening, setListening] = useState(false);
+  const listening = useAssistant((a) => a.listening);
   const [arAvailable, setArAvailable] = useState(false);
   const [arError, setArError] = useState<string | null>(null);
   const [simInstance, setSimInstance] = useState<WalkSimulator | null>(null);
@@ -106,11 +117,18 @@ function Navigator({
     void ARNav.isSupported()
       .then((s) => setArAvailable(Capacitor.isNativePlatform() && s.worldTracking))
       .catch(() => setArAvailable(false));
-    const intro =
+    // Arriving from "take me to the stage" elsewhere: the destination is already known.
+    const pending = takePendingPlace();
+    const target = pending ? matchPlace(pending, places) : null;
+    if (target) controller.setDestination(target.id);
+    const missed = pending && !target ? `I couldn't find ${pending}. ` : '';
+    const map = isSample ? ` We're using the ${sampleName} practice map.` : '';
+    const question =
       sampleName === 'Open hall'
-        ? `Go somewhere, using the open hall practice map. Stand at the entrance, facing into the hall. Then press the big button and say Entrance. The places are: ${roomList}.`
-        : `Go somewhere${isSample ? `, using the ${sampleName} practice map` : ''}. Where are you? Press the big button and say the room you're in, or pick it from the list. The places are: ${roomList}.`;
-    void announce(intro);
+        ? `${missed}Let's go somewhere.${map} Stand at the entrance, facing into the hall, and say Entrance. Which room are you in?`
+        : `${missed}Let's go somewhere.${map} Which room are you in? You can say ${roomList}.`;
+    if (canAutoListen() && inConversation()) void talk(target ? '' : question);
+    else void announce(`${target ? '' : question} Press Talk to answer, or pick from the list.`);
   }, [controller]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopPoseSources = useCallback(async () => {
@@ -144,61 +162,64 @@ function Navigator({
     setQuery('');
   };
 
-  /** Spoken answer to "where are you" / "where to"; returns a follow-up question if it didn't work. */
-  const onPlaceHeard = (heard: string, pick: (id: string) => void, question: string): string | void => {
-    if (!heard) return `Sorry, I didn't catch that. ${question}`;
-    const place = matchPlace(heard, places);
-    if (place) return pick(place.id);
-    return `I couldn't find ${heard}. You can say ${roomList}. ${question}`;
-  };
-
-  /** Spoken command while walking. */
-  const speakCommand = async () => {
-    setListening(true);
-    try {
-      const heard = await ask('Say a command.', [
-        'where am I',
-        'repeat',
-        'pause',
-        'resume',
-        'stop',
-        ...places.map((p) => p.label),
-      ]);
+  /**
+   * What's said on this screen. Room names choose the start and destination, "start" begins
+   * the route, and walking commands work during guidance. Returning '' keeps listening once
+   * the app has finished its reply, so choosing a route is one conversation.
+   */
+  const handleVoice = (heard: string): Reply => {
+    if (active) {
       const cmd = parseCommand(heard, places);
       switch (cmd.type) {
         case 'where':
           controller.gesture('tap');
-          break;
+          return true;
         case 'repeat':
           voice.repeat();
-          break;
+          return true;
         case 'pause':
           controller.pause();
-          break;
+          return true;
         case 'resume':
           controller.resume();
-          break;
+          return true;
         case 'end':
           controller.end();
-          break;
+          return true;
         case 'help':
           void say(VOICE_HELP);
-          break;
+          return true;
         case 'place':
           controller.goTo(cmd.id);
-          break;
+          return true;
         default:
-          void say(
-            heard
-              ? `I heard ${heard}, but I don't know that command. ${VOICE_HELP}`
-              : "I didn't hear anything.",
-          );
+          if (parseAppCommand(heard).type !== 'unknown') return false;
+          return `I heard ${heard}, but I don't know that. ${VOICE_HELP}`;
       }
-    } catch {
-      void say('Listening is not available right now.');
-    } finally {
-      setListening(false);
     }
+    if (state.phase === 'preview') {
+      if (/\b(start|begin|ready|yes|yeah|go|let'?s go|okay|ok)\b/i.test(heard)) {
+        controller.begin();
+        return true;
+      }
+      if (/\b(no|different|change|another|somewhere else)\b/i.test(heard)) {
+        controller.gesture('swipeBack');
+        return '';
+      }
+      if (/\b(again|repeat)\b/i.test(heard)) {
+        voice.repeat();
+        return '';
+      }
+    }
+    const place = matchPlace(heard, places);
+    if (place) {
+      if (choosingStart) chooseStart(place.id);
+      else chooseDestination(place.id);
+      return '';
+    }
+    if (parseAppCommand(heard).type !== 'unknown') return false;
+    if (state.phase === 'preview') return "Say start when you're ready, or say a different place.";
+    return `I couldn't find ${heard}. You can say ${roomList}. ${choosingStart ? 'Which room are you in?' : 'Where do you want to go?'}`;
   };
 
   const startAR = async () => {
@@ -342,6 +363,10 @@ function Navigator({
   const filtered = query.trim() ? controller.findDestination(query) : controller.destinations;
   const active = state.phase === 'guiding' || state.phase === 'paused' || state.phase === 'arrived';
   const choosingStart = state.phase === 'choose_start' || (!state.startId && state.phase !== 'preview');
+  useScreenVoice(
+    { handle: (h) => handleVoice(h), hints: [...places.map((p) => p.label), ...NAV_HINTS] },
+    active,
+  );
 
   if (active) {
     const dest = state.destinationId ? controller.index.nodes.get(state.destinationId) : undefined;
@@ -417,8 +442,8 @@ function Navigator({
           data-no-gesture
           className="grid grid-cols-4 gap-2 px-3 pt-2 pb-1 safe-bottom bg-bg border-t-[3px] border-line"
         >
-          <Button className="px-2" variant="primary" disabled={listening} onClick={() => void speakCommand()}>
-            {listening ? '…' : 'Speak'}
+          <Button className="px-2" variant="primary" disabled={listening} onClick={() => void talk('')}>
+            {listening ? '…' : 'Talk'}
           </Button>
           <Button className="px-2" onClick={() => voice.repeat()}>
             Repeat
@@ -515,12 +540,7 @@ function Navigator({
       )}
       {state.error && <ErrorBox error={state.error} />}
       {choosingStart ? (
-        <MicButton
-          label="Say where you are"
-          prompt="Where are you? Say the room you're in."
-          contextualStrings={places.map((p) => p.label)}
-          onHeard={(heard) => onPlaceHeard(heard, chooseStart, 'Which room are you in?')}
-        />
+        <MicButton label="Say where you are" prompt="Which room are you in?" />
       ) : (
         <>
           <p className="text-lg">
@@ -533,12 +553,7 @@ function Navigator({
               Change
             </button>
           </p>
-          <MicButton
-            label="Say where to go"
-            prompt="Where do you want to go?"
-            contextualStrings={places.map((p) => p.label)}
-            onHeard={(heard) => onPlaceHeard(heard, chooseDestination, 'Where do you want to go?')}
-          />
+          <MicButton label="Say where to go" prompt="Where do you want to go?" />
         </>
       )}
 
