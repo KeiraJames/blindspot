@@ -113,6 +113,20 @@ export const SPRITES = {
     'KKKKKKKKKKKK',
     '............',
   ],
+  eye: [
+    '............',
+    '............',
+    '...KKKKKK...',
+    '..KWWWWWWK..',
+    '.KWWKKKKWWK.',
+    'KWWKRRPRKWWK',
+    'KWWKRRRRKWWK',
+    '.KWWKKKKWWK.',
+    '..KWWWWWWK..',
+    '...KKKKKK...',
+    '............',
+    '............',
+  ],
   // "You are here", pointing the way you face.
   arrow: [
     '....K....',

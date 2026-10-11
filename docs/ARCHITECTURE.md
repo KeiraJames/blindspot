@@ -36,6 +36,12 @@ Voice commands during navigation are parsed in `src/lib/voice/commands.ts`. Room
 - **Pose:** `PoseAdapter` maps ARKit poses into the map, using the starting room's ARWorldMap when available. Otherwise it assumes you start in the chosen room, facing the first leg.
 - **Hazards:** the Vision plugin warns about close obstacles (LiDAR depth) and people. It never says a path is clear.
 
+## Look around
+
+A map-free mode (`src/screens/LookScreen.tsx`). ARNav runs with `surroundings: true`, which turns on vertical plane detection and reports ARKit-classified planes (door, seat, table, window) within 6 m twice a second, with distance and direction relative to where the phone points. On phones without LiDAR it also raycasts straight ahead against estimated surfaces. On LiDAR phones, the Vision engine reports the nearest surface in the left, middle and right thirds of the view (`clearance`) on every depth frame, and Vision detects people.
+
+`SurroundingsAnnouncer` (`src/lib/surroundings/announcer.ts`) turns that into a few alerts: stop (< 0.8 m ahead, high priority), something ahead (< 1.6 m, repeated only if 0.5 m closer or after 6 s), something close at a side (< 0.6 m), people (< 2.5 m), doors (once when seen within 5 m, once more at 1.3 m), and chairs and tables (once, within 2.5 m). It never says the way is clear. The distance ahead also drives parking-sensor style ticks (150 ms when very close, 1 s at 2.5 m, silent beyond).
+
 ## Coordinates
 
 Map frame: meters, `x` east-ish, `y` north-ish; bearings in radians, counter-clockwise from +x (positive turn = left). ARKit: `x` right, `y` up, camera looks −z; plan = `(x, −z)`; bearing = π/2 + yaw.

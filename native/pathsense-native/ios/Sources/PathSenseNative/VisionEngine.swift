@@ -28,6 +28,8 @@ final class VisionEngine {
     var onHazard: ((_ kind: String, _ distance: Float?, _ bearing: Double, _ confidence: Float, _ source: String) -> Void)?
     var onText: ((_ text: String, _ confidence: Float, _ bearing: Double) -> Void)?
     var onThermal: ((_ level: ThermalLevel, _ rate: Double) -> Void)?
+    /// Nearest surface in each third of the view (meters; nil = nothing measured). LiDAR only.
+    var onClearance: ((_ left: Float?, _ center: Float?, _ right: Float?) -> Void)?
 
     private(set) var config = Config()
     private(set) var customModelLoaded = false
@@ -177,6 +179,7 @@ final class VisionEngine {
         // Portrait vertical band around the horizon: sensor columns 30%…70%.
         let xStart = Int(Double(width) * 0.3), xEnd = Int(Double(width) * 0.7)
         var best: (distance: Float, column: Int)?
+        var nearest: [Float?] = [nil, nil, nil]
         for column in 0..<3 {
             let yStart = height * column / 3, yEnd = height * (column + 1) / 3
             var samples: [Float] = []
@@ -193,8 +196,11 @@ final class VisionEngine {
             samples.sort()
             // 10th percentile is robust to single noisy pixels.
             let d = samples[samples.count / 10]
+            nearest[column] = d
             if d < config.obstacleDistance, best == nil || d < best!.distance { best = (d, column) }
         }
+        // Column 0 is the device's right side in portrait.
+        onClearance?(nearest[2], nearest[1], nearest[0])
         guard let best else { return }
         // Row 0 is the device's right side in portrait: column 0 = right, 2 = left.
         let bearing = Double(best.column - 1) * horizontalFOV / 3

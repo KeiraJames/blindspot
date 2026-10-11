@@ -24,6 +24,26 @@ export interface ARNavStartOptions {
   showCamera?: boolean;
   /** Enable the native direct-touch gesture layer (works with VoiceOver on). */
   nativeGestures?: boolean;
+  /** Look-around mode: emit `surroundings` events (doors, seats, tables, distance ahead). */
+  surroundings?: boolean;
+}
+
+/** Something ARKit recognized near the walker. */
+export interface SurroundingItem {
+  id: string;
+  kind: 'door' | 'seat' | 'table' | 'window';
+  /** Meters, measured on the floor. */
+  distance: number;
+  /** Radians relative to where the phone points; positive = left. */
+  relativeBearing: number;
+  /** Width of the recognized surface in meters. */
+  width: number;
+}
+
+export interface SurroundingsEvent {
+  items: SurroundingItem[];
+  /** Distance to the surface straight ahead (phones without LiDAR). */
+  ahead?: number;
 }
 
 export interface ARNavPlugin {
@@ -37,6 +57,7 @@ export interface ARNavPlugin {
   saveWorldMap(options: { name: string }): Promise<{ path: string }>;
   addListener(event: 'pose', cb: (p: ARPose) => void): Promise<PluginListenerHandle>;
   addListener(event: 'gesture', cb: (e: { gesture: Gesture }) => void): Promise<PluginListenerHandle>;
+  addListener(event: 'surroundings', cb: (e: SurroundingsEvent) => void): Promise<PluginListenerHandle>;
   addListener(event: 'interrupted', cb: (e: { interrupted: boolean }) => void): Promise<PluginListenerHandle>;
 }
 

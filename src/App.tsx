@@ -9,6 +9,7 @@ import { useSettings } from './state/settings';
 
 const NavigateScreen = lazy(() => import('./screens/NavigateScreen'));
 const ScanScreen = lazy(() => import('./screens/ScanScreen'));
+const LookScreen = lazy(() => import('./screens/LookScreen'));
 const RoomsScreen = lazy(() => import('./screens/RoomsScreen'));
 const SettingsScreen = lazy(() => import('./screens/SettingsScreen'));
 const HelpScreen = lazy(() => import('./screens/HelpScreen'));
@@ -55,6 +56,7 @@ const router = createHashRouter([
       { path: '/', element: <HomeScreen /> },
       { path: '/go', element: <NavigateScreen /> },
       { path: '/scan', element: <ScanScreen /> },
+      { path: '/look', element: <LookScreen /> },
       { path: '/rooms', element: <RoomsScreen /> },
       { path: '/settings', element: <SettingsScreen /> },
       { path: '/help', element: <HelpScreen /> },

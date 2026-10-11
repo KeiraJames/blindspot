@@ -17,7 +17,9 @@ export function HomeScreen() {
     // Speak the menu once per launch, not every time you come back.
     if (introduced) return;
     introduced = true;
-    void announce(`PathSense. ${status} Choose Go somewhere, Add a room, My rooms, Settings, or How to use.`);
+    void announce(
+      `PathSense. ${status} Choose Go somewhere, Look around, Add a room, My rooms, Settings, or How to use.`,
+    );
   }, [status]);
 
   return (
@@ -31,6 +33,10 @@ export function HomeScreen() {
         <LinkButton to="/go" variant="primary" block className="min-h-28 text-2xl gap-4">
           <PixelArt name="arrow" size={40} />
           Go somewhere
+        </LinkButton>
+        <LinkButton to="/look" block className="min-h-24 text-2xl gap-4">
+          <PixelArt name="eye" size={40} />
+          Look around
         </LinkButton>
         <LinkButton to="/scan" block className="min-h-24 text-2xl gap-4">
           <PixelArt name="sparkle" size={36} />

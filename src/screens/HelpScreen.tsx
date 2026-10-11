@@ -37,6 +37,18 @@ const SECTIONS: { title: string; sprite: SpriteName; lines: string[] }[] = [
     ],
   },
   {
+    title: 'Look around',
+    sprite: 'eye',
+    lines: [
+      'Press Look around. You don’t need a map for this.',
+      'Hold the phone up in front of your chest, with the back camera facing forward.',
+      'Walk slowly. The phone tells you when something is in your way.',
+      'It tells you about people and doors too.',
+      'Ticks get faster when something is close in front of you.',
+      'Tap the screen to hear what is around you.',
+    ],
+  },
+  {
     title: 'Feel the buzzes',
     sprite: 'heart',
     lines: [

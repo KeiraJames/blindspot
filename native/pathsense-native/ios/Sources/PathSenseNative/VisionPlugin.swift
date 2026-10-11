@@ -22,6 +22,13 @@ public class PathSenseVisionPlugin: CAPPlugin, CAPBridgedPlugin {
         engine.onText = { [weak self] text, confidence, bearing in
             self?.notifyListeners("text", data: ["text": text, "confidence": confidence, "relativeBearing": bearing])
         }
+        engine.onClearance = { [weak self] left, center, right in
+            var data: JSObject = [:]
+            if let left { data["left"] = Double(left) }
+            if let center { data["center"] = Double(center) }
+            if let right { data["right"] = Double(right) }
+            self?.notifyListeners("clearance", data: data)
+        }
         engine.onThermal = { [weak self] level, rate in
             self?.notifyListeners("thermal", data: ["state": level.rawValue, "rate": rate])
         }

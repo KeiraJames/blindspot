@@ -33,6 +33,11 @@ export interface VisionPlugin {
     event: 'text',
     cb: (e: { text: string; confidence: number; relativeBearing: number }) => void,
   ): Promise<PluginListenerHandle>;
+  /** Nearest surface in the left, middle and right of the view, in meters (LiDAR phones). */
+  addListener(
+    event: 'clearance',
+    cb: (e: { left?: number; center?: number; right?: number }) => void,
+  ): Promise<PluginListenerHandle>;
   addListener(
     event: 'thermal',
     cb: (e: { state: 'nominal' | 'fair' | 'serious' | 'critical'; rate: number }) => void,

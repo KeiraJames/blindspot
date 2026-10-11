@@ -29,6 +29,9 @@ public class PathSenseARNavPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegat
     private var usingWorldMap = false
     private var relocalized = false
     private var wantsNativeGestures = false
+    /// "Look around" mode: report doors, seats, tables and the distance ahead twice a second.
+    private var surroundings = false
+    private var lastSurroundingsAt: TimeInterval = 0
 
     override public func load() {
         NotificationCenter.default.addObserver(
@@ -53,6 +56,7 @@ public class PathSenseARNavPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegat
         let showCamera = call.getBool("showCamera") ?? true
         let rate = max(1, min(30, call.getDouble("poseRate") ?? 10))
         wantsNativeGestures = call.getBool("nativeGestures") ?? true
+        surroundings = call.getBool("surroundings") ?? false
         poseInterval = 1 / rate
 
         var worldMap: ARWorldMap?
@@ -73,7 +77,8 @@ public class PathSenseARNavPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegat
 
             let config = ARWorldTrackingConfiguration()
             config.worldAlignment = .gravity
-            config.planeDetection = [.horizontal]
+            // Vertical planes are needed to find doors (ARKit classifies them on A12 and later).
+            config.planeDetection = self.surroundings ? [.horizontal, .vertical] : [.horizontal]
             if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
                 config.frameSemantics.insert(.sceneDepth)
             }
@@ -210,6 +215,10 @@ public class PathSenseARNavPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegat
 
     public func session(_ session: ARSession, didUpdate frame: ARFrame) {
         VisionEngine.shared.process(frame)
+        if surroundings && frame.timestamp - lastSurroundingsAt >= 0.5 {
+            lastSurroundingsAt = frame.timestamp
+            reportSurroundings(frame, session: session)
+        }
         guard frame.timestamp - lastPoseAt >= poseInterval else { return }
         lastPoseAt = frame.timestamp
 
@@ -257,6 +266,52 @@ public class PathSenseARNavPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegat
     }
 
     public func sessionShouldAttemptRelocalization(_ session: ARSession) -> Bool { true }
+
+    /// Classified planes near the walker (doors, seats, tables, windows) with distance and
+    /// direction relative to where the phone points, plus the distance straight ahead on phones
+    /// without LiDAR (raycast against surfaces ARKit has estimated).
+    private func reportSurroundings(_ frame: ARFrame, session: ARSession) {
+        let cam = frame.camera.transform
+        let camPos = SIMD3<Float>(cam.columns.3.x, cam.columns.3.y, cam.columns.3.z)
+        let yaw = Self.yaw(of: cam)
+        // Forward direction in the plan frame (x, −z): bearing = π/2 + yaw.
+        let heading = Float.pi / 2 + Float(yaw)
+        var items: JSArray = []
+        for anchor in frame.anchors {
+            guard let plane = anchor as? ARPlaneAnchor else { continue }
+            let kind: String
+            switch plane.classification {
+            case .door: kind = "door"
+            case .seat: kind = "seat"
+            case .table: kind = "table"
+            case .window: kind = "window"
+            default: continue
+            }
+            let c = plane.transform * SIMD4<Float>(plane.center.x, plane.center.y, plane.center.z, 1)
+            let dx = c.x - camPos.x, dyPlan = -(c.z - camPos.z)
+            let distance = (dx * dx + dyPlan * dyPlan).squareRoot()
+            guard distance < 6 else { continue }
+            var rel = atan2(dyPlan, dx) - heading
+            while rel > .pi { rel -= 2 * .pi }
+            while rel < -.pi { rel += 2 * .pi }
+            items.append([
+                "id": anchor.identifier.uuidString,
+                "kind": kind,
+                "distance": Double(distance),
+                "relativeBearing": Double(rel),
+                "width": Double(plane.planeExtent.width),
+            ])
+        }
+        var data: JSObject = ["items": items]
+        if frame.sceneDepth == nil {
+            let query = frame.raycastQuery(from: CGPoint(x: 0.5, y: 0.5), allowing: .estimatedPlane, alignment: .any)
+            if let hit = session.raycast(query).first {
+                let p = hit.worldTransform.columns.3
+                data["ahead"] = Double(simd_distance(SIMD3<Float>(p.x, p.y, p.z), camPos))
+            }
+        }
+        notifyListeners("surroundings", data: data)
+    }
 
     /// Heading about gravity: 0 = facing −z, positive = turned left. Uses the camera's
     /// forward axis, falling back to the phone's top edge when the phone is pitched down.
