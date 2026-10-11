@@ -79,7 +79,10 @@ public class PathSenseSpeechPlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthes
             utterance.voice = AVSpeechSynthesisVoice(language: language)
             let base = AVSpeechUtteranceDefaultSpeechRate
             utterance.rate = min(AVSpeechUtteranceMaximumSpeechRate, max(AVSpeechUtteranceMinimumSpeechRate, base * rate))
-            utterance.prefersAssistiveTechnologySettings = true
+            // Use the app's own speed setting (not VoiceOver's), and leave a short breath
+            // between sentences so instructions are easier to follow.
+            utterance.prefersAssistiveTechnologySettings = false
+            utterance.postUtteranceDelay = 0.25
             self.pendingSpeech[ObjectIdentifier(utterance)] = call
             self.synthesizer.speak(utterance)
         }

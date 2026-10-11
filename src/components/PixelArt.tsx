@@ -43,6 +43,76 @@ export const SPRITES = {
     '....KK....',
     '..KKKKKK..',
   ],
+  desk: [
+    '............',
+    '.....YY.....',
+    '....YWWY....',
+    '...KYYYYK...',
+    'KKKKKKKKKKKK',
+    'KTTTTTTTTTTK',
+    'KTttttttttTK',
+    'KTTTTTTTTTTK',
+    'KTTTTPPTTTTK',
+    'KTTTTPPTTTTK',
+    'KTTTTTTTTTTK',
+    'KKKKKKKKKKKK',
+  ],
+  coffee: [
+    '...p..p.....',
+    '....p..p....',
+    '...p..p.....',
+    '.KKKKKKKK...',
+    '.KWWWWWWKKK.',
+    '.KWRRRRWK.K.',
+    '.KWWWWWWK.K.',
+    '.KWWWWWWKKK.',
+    '.KWWWWWWK...',
+    '..KKKKKK....',
+    'KKKKKKKKKK..',
+    '............',
+  ],
+  stage: [
+    'KKKKKKKKKKKK',
+    'KRRK....KRRK',
+    'KRRK.YY.KRRK',
+    'KRK..YY..KRK',
+    'KRK.YWWY.KRK',
+    'KK..YWWY..KK',
+    'K...YYYY...K',
+    'KKKKKKKKKKKK',
+    'KTTTTTTTTTTK',
+    'KttttttttttK',
+    'KKKKKKKKKKKK',
+    '............',
+  ],
+  seat: [
+    '..KKKKKKKK..',
+    '..KPPPPPPK..',
+    '..KPPPPPPK..',
+    '..KPPPPPPK..',
+    '..KPPPPPPK..',
+    '..KKKKKKKK..',
+    '.KPPPPPPPPK.',
+    '.KKKKKKKKKK.',
+    '..K......K..',
+    '..K......K..',
+    '..K......K..',
+    '............',
+  ],
+  door: [
+    '..KKKKKKKK..',
+    '..KTTTTTTK..',
+    '..KTttttTK..',
+    '..KTTTTTTK..',
+    '..KTTTTTYK..',
+    '..KTTTTTTK..',
+    '..KTttttTK..',
+    '..KTTTTTTK..',
+    '..KTTTTTTK..',
+    '..KTTTTTTK..',
+    'KKKKKKKKKKKK',
+    '............',
+  ],
   // "You are here", pointing the way you face.
   arrow: [
     '....K....',
@@ -203,8 +273,15 @@ export function PixelArt({
 }
 
 /** Which sprite (if any) represents a place, from its point-of-interest type or name. */
-export function spriteFor(node: Pick<GraphNode, 'label' | 'poiType' | 'kind'>): SpriteName | null {
+export function spriteFor(
+  node: Pick<GraphNode, 'label' | 'poiType' | 'kind'> & { exterior?: boolean },
+): SpriteName | null {
   const label = node.label.toLowerCase();
+  if (/desk|reception|check.?in|registration|information/.test(label)) return 'desk';
+  if (/coffee|cafe|snack|drink|tea/.test(label)) return 'coffee';
+  if (/stage|podium|lectern/.test(label)) return 'stage';
+  if (/seat|chair|sitting|bench/.test(label)) return 'seat';
+  if ((node.kind === 'door' && node.exterior) || /entrance|exit/.test(label)) return 'door';
   if (node.poiType === 'kitchen' || /kitchen|kitchenette/.test(label)) return 'kitchen';
   if (node.poiType === 'bathroom' || /bath|toilet|restroom|washroom/.test(label)) return 'bathroom';
   if (/closet|wardrobe|storage/.test(label)) return 'closet';

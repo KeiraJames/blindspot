@@ -8,16 +8,16 @@ import { useActiveMap } from '../state/place';
 let introduced = false;
 
 export function HomeScreen() {
-  const { graph, isSample } = useActiveMap();
+  const { graph, isSample, sampleName } = useActiveMap();
   const status = isSample
-    ? 'You have no rooms yet, so a sample home is loaded. Add a room to start your own map.'
+    ? `You have no rooms yet, so the ${sampleName} practice map is loaded. Add a room to make your own.`
     : `Your home has ${graph.rooms.length} ${graph.rooms.length === 1 ? 'room' : 'rooms'}.`;
 
   useEffect(() => {
     // Speak the menu once per launch, not every time you come back.
     if (introduced) return;
     introduced = true;
-    void announce(`PathSense. ${status} Choose Go somewhere, Add a room, My rooms, Settings, or Help.`);
+    void announce(`PathSense. ${status} Choose Go somewhere, Add a room, My rooms, Settings, or How to use.`);
   }, [status]);
 
   return (
@@ -45,7 +45,7 @@ export function HomeScreen() {
             Settings
           </LinkButton>
           <LinkButton to="/help" block className="min-h-16">
-            Help
+            How to use
           </LinkButton>
         </div>
       </nav>

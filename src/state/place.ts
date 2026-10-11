@@ -1,9 +1,11 @@
 import { create } from 'zustand';
+import { buildSampleHall } from '../data/sampleHall';
 import { buildSampleHome } from '../data/sampleHome';
 import { addScannedRoom, deleteRoom, emptyPlace, renameRoom } from '../lib/graph/rooms';
 import type { MapGraph } from '../lib/graph/types';
 import type { ScanResult } from '../lib/scan/types';
 import { idb } from '../lib/util/idb';
+import { useSettings, type SampleId } from './settings';
 
 /** Everything the user has scanned, stored on this device only. */
 interface SavedPlace {
@@ -59,12 +61,21 @@ export const usePlace = create<PlaceState>((set, get) => ({
   },
 }));
 
-const sample = buildSampleHome();
+export const SAMPLES: Record<SampleId, { name: string; graph: MapGraph }> = {
+  hall: { name: 'Open hall', graph: buildSampleHall() },
+  home: { name: 'Home', graph: buildSampleHome() },
+};
 
-/** The map to navigate: your scanned rooms, or the sample home until you've scanned one. */
-export function useActiveMap(): { graph: MapGraph; isSample: boolean; scans: Record<string, ScanResult> } {
+/** The map to navigate: your scanned rooms, or a practice map until you've scanned one. */
+export function useActiveMap(): {
+  graph: MapGraph;
+  isSample: boolean;
+  sampleName: string | null;
+  scans: Record<string, ScanResult>;
+} {
   const place = usePlace((s) => s.place);
+  const sample = useSettings((s) => s.sample);
   return place.graph.rooms.length > 0
-    ? { graph: place.graph, isSample: false, scans: place.scans }
-    : { graph: sample, isSample: true, scans: {} };
+    ? { graph: place.graph, isSample: false, sampleName: null, scans: place.scans }
+    : { graph: SAMPLES[sample].graph, isSample: true, sampleName: SAMPLES[sample].name, scans: {} };
 }

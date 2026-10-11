@@ -21,8 +21,8 @@ import type { ScanResult } from '../lib/scan/types';
 import { matchPlace, parseCommand, VOICE_HELP } from '../lib/voice/commands';
 import { ARNav, type ARPose } from '../plugins/arnav';
 import { Vision } from '../plugins/vision';
-import { useActiveMap } from '../state/place';
-import { useSettings, type Settings } from '../state/settings';
+import { SAMPLES, useActiveMap } from '../state/place';
+import { useSettings, type SampleId, type Settings } from '../state/settings';
 
 function navOptions(s: Settings): NavOptions {
   return {
@@ -35,19 +35,29 @@ function navOptions(s: Settings): NavOptions {
 }
 
 export default function NavigateScreen() {
-  const { graph, scans, isSample } = useActiveMap();
+  const { graph, scans, isSample, sampleName } = useActiveMap();
   // Remount when the map changes (e.g. after the first room is scanned).
-  return <Navigator key={isSample ? 'sample' : 'mine'} graph={graph} scans={scans} isSample={isSample} />;
+  return (
+    <Navigator
+      key={sampleName ?? 'mine'}
+      graph={graph}
+      scans={scans}
+      isSample={isSample}
+      sampleName={sampleName}
+    />
+  );
 }
 
 function Navigator({
   graph,
   scans,
   isSample,
+  sampleName,
 }: {
   graph: MapGraph;
   scans: Record<string, ScanResult>;
   isSample: boolean;
+  sampleName: string | null;
 }) {
   const settings = useSettings();
   const controller = useMemo(
@@ -91,9 +101,11 @@ function Navigator({
     void ARNav.isSupported()
       .then((s) => setArAvailable(Capacitor.isNativePlatform() && s.worldTracking))
       .catch(() => setArAvailable(false));
-    void announce(
-      `Go somewhere${isSample ? ', in the sample home' : ''}. Where are you? Press the big button and say the room you're in, or pick it from the list. The rooms are: ${roomList}.`,
-    );
+    const intro =
+      sampleName === 'Open hall'
+        ? `Go somewhere, using the open hall practice map. Stand at the entrance, facing into the hall. Then press the big button and say Entrance. The places are: ${roomList}.`
+        : `Go somewhere${isSample ? `, using the ${sampleName} practice map` : ''}. Where are you? Press the big button and say the room you're in, or pick it from the list. The places are: ${roomList}.`;
+    void announce(intro);
   }, [controller]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopPoseSources = useCallback(async () => {
@@ -473,7 +485,29 @@ function Navigator({
 
   return (
     <Screen title={choosingStart ? 'Where are you?' : 'Where to?'} back="/">
-      {isSample && <p className="text-muted">Using the sample home. Add a room to navigate your own.</p>}
+      {isSample && (
+        <Card className="flex flex-col gap-2">
+          <p id="practice-map-label" className="font-semibold">
+            Practice map
+          </p>
+          <div role="group" aria-labelledby="practice-map-label" className="grid grid-cols-2 gap-2">
+            {(Object.keys(SAMPLES) as SampleId[]).map((id) => (
+              <Button
+                key={id}
+                variant={settings.sample === id ? 'primary' : 'secondary'}
+                aria-pressed={settings.sample === id}
+                onClick={() => settings.set({ sample: id })}
+              >
+                {SAMPLES[id].name}
+              </Button>
+            ))}
+          </div>
+          {sampleName === 'Open hall' && (
+            <p>Stand at the entrance of the hall, facing in. Then say “Entrance”.</p>
+          )}
+          <p className="text-muted text-sm">Add a room to make your own map.</p>
+        </Card>
+      )}
       {state.error && <ErrorBox error={state.error} />}
       {choosingStart ? (
         <MicButton

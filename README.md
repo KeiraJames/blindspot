@@ -13,7 +13,14 @@ Indoor navigation for blind and low-vision people, on iPhone. Scan a room with t
 
 Everything is spoken, so the app works without looking at it. With VoiceOver on, the app lets VoiceOver read the screens and only speaks navigation prompts and answers itself. All data stays on the phone.
 
-Until you scan your first room, a sample home (Kitchen, Bedroom, Bathroom, Closet) is loaded so you can try navigation.
+Until you scan your first room, a practice map is loaded so you can try navigation:
+
+- **Open hall** (default): Entrance, Welcome desk, Coffee table, Seating area and Stage, spread over about 13 × 14 m. It's built for demos in a large open space, where there are no walls to follow with a cane. Stand at the entrance facing into the hall, say "Entrance", then for example "Coffee table", press Start and walk.
+- **Home:** Kitchen, Bedroom, Bathroom and Closet.
+
+**Practice scan:** on the Add a room screen, *Practice first* runs a pretend scan with spoken coaching, then asks for the room's name, so you can learn the steps on any phone (or the Simulator). Nothing is saved.
+
+The voice speaks slower than the iOS default, with a short pause between sentences; *Settings → Speaking speed* plays a sample as you change it. *How to use* explains everything in short, simple sentences, each with a Listen button.
 
 ## Run it
 
