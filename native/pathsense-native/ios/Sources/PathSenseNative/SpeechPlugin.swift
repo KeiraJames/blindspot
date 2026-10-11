@@ -31,6 +31,7 @@ public class PathSenseSpeechPlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthes
     // or changed the transcript. Listening ends after a short silence, never mid-sentence.
     private var listenStarted = Date()
     private var lastActivity = Date()
+    private var lastWords = Date()
     private var heardVoice = false
     private var noiseFloor: Float = -50
     private var startTimeout: TimeInterval = 8
@@ -156,6 +157,7 @@ public class PathSenseSpeechPlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthes
         silenceWindow = silence
         listenStarted = Date()
         lastActivity = Date()
+        lastWords = Date()
         heardVoice = false
         noiseFloor = -50
         try Self.setPlaybackSession()
@@ -188,6 +190,7 @@ public class PathSenseSpeechPlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthes
                         self.transcript = text
                         self.heardVoice = true
                         self.lastActivity = Date()
+                        self.lastWords = Date()
                     }
                     if result.isFinal { self.finishListening(error: nil) }
                 } else if error != nil {
@@ -227,12 +230,14 @@ public class PathSenseSpeechPlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthes
         let quiet = now.timeIntervalSince(lastActivity)
         let elapsed = now.timeIntervalSince(listenStarted)
         if heardVoice && !transcript.isEmpty {
-            // They spoke and have now paused: answer straight away.
-            if quiet >= silenceWindow || elapsed >= Self.maxListen { finishListening(error: nil) }
-        } else if elapsed >= startTimeout && quiet >= silenceWindow {
-            // Nobody started talking (and nobody is mid-word right now).
-            finishListening(error: nil)
-        } else if elapsed >= Self.maxListen {
+            // They spoke and have now paused: answer straight away. Sound alone (a noisy room)
+            // can hold the mic open only briefly past the last recognized word.
+            let wordsQuiet = now.timeIntervalSince(lastWords)
+            if quiet >= silenceWindow || wordsQuiet >= silenceWindow + 1.5 || elapsed >= Self.maxListen {
+                finishListening(error: nil)
+            }
+        } else if elapsed >= startTimeout {
+            // Nobody started talking.
             finishListening(error: nil)
         }
     }

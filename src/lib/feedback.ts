@@ -109,13 +109,18 @@ export async function ask(
   // Mic open: a rising tone and a soft buzz mean "your turn".
   void cue('listening');
   voice.hold();
+  let heard = '';
   try {
-    const { transcript } = await Speech.listen({ timeoutMs, silenceMs: 1000, contextualStrings });
-    const heard = cleanTranscript(transcript);
-    // Mic closed: "got it", or a gentle "didn't catch that".
-    void cue(heard ? 'heard' : 'notUnderstood');
+    // Safety net: if the microphone never reports back, stop rather than look stuck.
+    const guard = setTimeout(() => stopListening(), timeoutMs + 32_000);
+    const { transcript } = await Speech.listen({ timeoutMs, silenceMs: 1000, contextualStrings }).finally(
+      () => clearTimeout(guard),
+    );
+    heard = cleanTranscript(transcript);
     return heard;
   } finally {
+    // Mic closed (always, even on an error): "got it", or a gentle "didn't catch that".
+    void cue(heard ? 'heard' : 'notUnderstood');
     voice.release();
   }
 }

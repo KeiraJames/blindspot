@@ -19,13 +19,13 @@
 
 ## What it does
 
-|                           |                                                                                           |
-| ------------------------- | ----------------------------------------------------------------------------------------- |
-| 🗣️ **Talk to it**         | Press **Talk** anywhere and say _"take me to the stage"_, _"look around"_ or _"go back"_. |
-| 🧭 **Go somewhere**       | Turn-by-turn directions by voice, vibration and sound.                                    |
-| 👁️ **Look around**        | Warns about obstacles, people and doors in real time, no map needed.                      |
-| ✨ **Add a room**         | Scan a room with LiDAR and name it by voice. Rooms join up through shared doors.          |
-| 🔔 **Know when to speak** | Rising beep = your turn. Falling beep = heard you. Low beep = didn't catch that.          |
+|                           |                                                                                                          |
+| ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| 🗣️ **Talk to it**         | Press the mic, or answer when it asks, and say _"take me to the stage"_, _"look around"_ or _"go back"_. |
+| 🧭 **Go somewhere**       | Turn-by-turn directions by voice, vibration and sound.                                                   |
+| 👁️ **Look around**        | Warns about obstacles, people and doors in real time, no map needed.                                     |
+| ✨ **Add a room**         | Scan a room with LiDAR and name it by voice. Rooms join up through shared doors.                         |
+| 🔔 **Know when to speak** | A buzz and glowing screen edges = your turn. Another buzz = done listening.                              |
 
 Everything stays on the phone. A practice **Open hall** map is ready until you scan your own rooms.
 
@@ -48,7 +48,7 @@ npm run dev
 
 ## Built with
 
-React · TypeScript · Vite · Tailwind · Capacitor · Swift (RoomPlan, ARKit, Vision, Core Haptics, Speech) · ElevenLabs
+React · TypeScript · Vite · Tailwind · Capacitor · Swift (RoomPlan, ARKit, Vision, Core Haptics, Speech) · ElevenLabs. See the [tech stack diagram](docs/TECH_STACK.md).
 
 | Command                              |                           |
 | ------------------------------------ | ------------------------- |

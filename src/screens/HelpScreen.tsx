@@ -19,10 +19,10 @@ const SECTIONS: { title: string; sprite: SpriteName; lines: string[] }[] = [
     title: 'Talking to the app',
     sprite: 'mic',
     lines: [
-      'Press Talk at the bottom of any screen.',
-      'A rising beep and a soft buzz mean: your turn to talk.',
+      'The app asks you something, or you press the mic at the top.',
+      'A soft buzz and glowing edges mean: your turn to talk.',
       'Say what you want, like “take me to the stage” or “look around”.',
-      'A falling beep means it heard you. A low beep means it didn’t.',
+      'Another buzz means it stopped listening.',
       'Take your time. It waits until you finish.',
       'Say “help” to hear what you can say.',
     ],

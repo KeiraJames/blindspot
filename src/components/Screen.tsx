@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { TalkButton } from './TalkButton';
 import { cx } from './ui';
 
 /**
@@ -48,13 +49,13 @@ export function Screen({
           </h1>
           {logo && <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" className="h-9 w-auto shrink-0" />}
           {actions}
+          <TalkButton />
         </div>
       </header>
       <main
         id="main"
         className={cx(
-          // Room at the bottom for the Talk button.
-          'mx-auto w-full flex-1 px-4 pt-4 pb-32 flex flex-col gap-4',
+          'mx-auto w-full flex-1 px-4 py-4 safe-bottom flex flex-col gap-4',
           wide ? 'max-w-6xl' : 'max-w-2xl',
           className,
         )}

@@ -162,3 +162,32 @@ h3,
     scroll-behavior: auto !important;
   }
 }
+
+/* Listening: glowing, blurred screen edges. Never blocks taps. */
+.listening-edge {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 250ms ease;
+  box-shadow: inset 0 0 28px 10px rgb(240 98 166 / 0.75);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  -webkit-mask-image: radial-gradient(ellipse at center, transparent 62%, black 100%);
+  mask-image: radial-gradient(ellipse at center, transparent 62%, black 100%);
+}
+.listening-edge.is-on {
+  opacity: 1;
+  animation: listening-breathe 1.6s ease-in-out infinite;
+}
+@keyframes listening-breathe {
+  50% {
+    box-shadow: inset 0 0 40px 16px rgb(194 24 91 / 0.8);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .listening-edge.is-on {
+    animation: none;
+  }
+}

@@ -183,16 +183,18 @@ export async function talk(prompt = ''): Promise<void> {
   try {
     let question = prompt;
     let misses = 0;
+    let silences = 0;
     for (;;) {
       const hints = screens.at(-1)?.hints ?? [];
       const heard = await ask(question, [...hints, 'go back', 'look around', 'take me to']);
       if (heard) lastSpokeAt = Date.now();
       const reply = handleUtterance(heard);
       if (typeof reply !== 'string') break;
-      // Two misses in a row: stop asking and leave the mic closed.
+      // Silence twice, or too many misses: stop asking and leave the mic closed.
       misses = heard && !reply.startsWith('Sorry') ? 0 : misses + 1;
-      if (misses > FOLLOW_UPS) {
-        void say("I'll be here. Press Talk when you need me.");
+      silences = heard ? 0 : silences + 1;
+      if (misses > FOLLOW_UPS || silences >= 2) {
+        void say("I'll be here. Press the mic when you need me.");
         break;
       }
       question = reply;

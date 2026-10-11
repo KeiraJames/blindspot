@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { isVoiceOverRunning } from '../lib/feedback';
+import { isVoiceOverRunning, stopListening } from '../lib/feedback';
 import {
   registerScreenVoice,
   setNavigator,
@@ -12,35 +12,45 @@ import { PixelArt } from './PixelArt';
 import { cx } from './ui';
 
 /**
- * The same big Talk button at the bottom of every screen: press it and speak to do anything in
- * the app. A rising tone and a soft buzz mean it's listening; a falling tone means it heard you.
+ * Shows when the app is listening, without covering anything: the screen's edges glow and
+ * blur (every button underneath still works). A soft buzz marks the start and the end; see
+ * `ask` in feedback.ts. Also connects the voice companion to the router.
  */
-export function TalkButton() {
+export function ListeningEdge() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { listening, hideButton } = useAssistant();
+  const listening = useAssistant((a) => a.listening);
   useEffect(
     () => setNavigator((to) => (to === -1 ? navigate(-1) : navigate(to)), pathname),
     [navigate, pathname],
   );
+  return (
+    <>
+      <div aria-hidden className={cx('listening-edge', listening && 'is-on')} />
+      <p role="status" className="sr-only">
+        {listening ? 'Listening' : ''}
+      </p>
+    </>
+  );
+}
+
+/** Small mic button for headers: press it and say what you want to do. */
+export function TalkButton({ className }: { className?: string }) {
+  const { listening, hideButton } = useAssistant();
   if (hideButton) return null;
   return (
-    <div className="fixed inset-x-0 bottom-0 z-20 px-4 pb-3 safe-bottom pointer-events-none">
-      <button
-        type="button"
-        onClick={() => void talk('')}
-        disabled={listening}
-        aria-label={listening ? 'Listening' : 'Talk. Say what you want to do.'}
-        className={cx(
-          'pointer-events-auto pixel-frame pixel-press mx-auto w-full max-w-2xl min-h-20 flex items-center justify-center gap-3 bg-accent text-accent-fg',
-        )}
-      >
-        <PixelArt name="mic" size={36} className={listening ? 'animate-pulse' : undefined} />
-        <span className={cx('font-pixel text-2xl', listening && 'animate-pulse')}>
-          {listening ? 'Listening…' : 'Talk'}
-        </span>
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={() => (listening ? stopListening() : void talk(''))}
+      aria-label={listening ? 'Stop listening' : 'Talk. Say what you want to do.'}
+      aria-pressed={listening}
+      className={cx(
+        'pixel-frame pixel-press shrink-0 min-h-12 min-w-12 flex items-center justify-center bg-accent text-accent-fg',
+        className,
+      )}
+    >
+      <PixelArt name="mic" size={28} />
+    </button>
   );
 }
 

@@ -6,7 +6,7 @@ import { NavMap } from '../components/NavMap';
 import { PixelArt, spriteFor } from '../components/PixelArt';
 import { Screen } from '../components/Screen';
 import { Button, Card, cx, ErrorBox, Field } from '../components/ui';
-import { announce, cue, say, voice } from '../lib/feedback';
+import { announce, cue, say, stopListening, voice } from '../lib/feedback';
 import { canAutoListen, useScreenVoice } from '../components/TalkButton';
 import {
   inConversation,
@@ -127,7 +127,7 @@ function Navigator({
         ? `${missed}Let's go somewhere.${map} Stand at the entrance, facing into the hall, and say Entrance. Which room are you in?`
         : `${missed}Let's go somewhere.${map} Which room are you in? You can say ${roomList}.`;
     if (canAutoListen() && inConversation()) void talk(target ? '' : question);
-    else void announce(`${target ? '' : question} Press Talk to answer, or pick from the list.`);
+    else void announce(`${target ? '' : question} Press the mic to answer, or pick from the list.`);
   }, [controller]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopPoseSources = useCallback(async () => {
@@ -441,8 +441,12 @@ function Navigator({
           data-no-gesture
           className="grid grid-cols-4 gap-2 px-3 pt-2 pb-1 safe-bottom bg-bg border-t-[3px] border-line"
         >
-          <Button className="px-2" variant="primary" disabled={listening} onClick={() => void talk('')}>
-            {listening ? '…' : 'Talk'}
+          <Button
+            className="px-2"
+            variant="primary"
+            onClick={() => (listening ? stopListening() : void talk(''))}
+          >
+            {listening ? 'Stop' : 'Talk'}
           </Button>
           <Button className="px-2" onClick={() => voice.repeat()}>
             Repeat
