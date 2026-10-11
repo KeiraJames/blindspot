@@ -6,8 +6,8 @@ export type Priority = 'low' | 'normal' | 'high';
 export interface VoiceSettings {
   enabled: boolean;
   rate: number;
-  /** Use the ElevenLabs voice when available; otherwise the built-in iOS voice. */
-  natural: boolean;
+  /** ElevenLabs voice id, or 'iphone' for the built-in iOS voice only. */
+  voice: string;
 }
 
 interface Utterance {
@@ -65,8 +65,8 @@ export class VoiceGuide {
 
   /** Start fetching clips for prompts that will be spoken soon. */
   prefetch(texts: string[]) {
-    if (!this.settings.natural || !elevenLabsReady()) return;
-    for (const t of texts) void getClip(t, this.settings.rate);
+    if (this.settings.voice === 'iphone' || !elevenLabsReady()) return;
+    for (const t of texts) void getClip(t, this.settings.rate, this.settings.voice);
   }
 
   repeat() {
@@ -96,11 +96,11 @@ export class VoiceGuide {
     this.lastSpoken = next.text;
     try {
       let clip: Blob | null = null;
-      if (this.settings.natural && elevenLabsReady()) {
+      if (this.settings.voice !== 'iphone' && elevenLabsReady()) {
         // Hazards can't wait for the network; only an already-cached clip is fast enough.
         const budget = next.priority === 'high' ? 150 : this.latencyBudgetMs;
         clip = await Promise.race([
-          getClip(next.text, this.settings.rate),
+          getClip(next.text, this.settings.rate, this.settings.voice),
           new Promise<null>((r) => setTimeout(() => r(null), budget)),
         ]);
       }

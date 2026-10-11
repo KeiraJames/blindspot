@@ -6,7 +6,8 @@ import { hashKey, idb } from '../util/idb';
  * device and demos, but don't distribute a build that contains it.
  */
 const API_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY ?? '';
-const VOICE_ID = import.meta.env.VITE_ELEVENLABS_VOICE_ID ?? '';
+/** Your own pick from the Voice Library (needs a paid plan to use through the API). */
+const CUSTOM_VOICE_ID = import.meta.env.VITE_ELEVENLABS_VOICE_ID ?? '';
 const MODEL = 'eleven_flash_v2_5'; // lowest latency; good for short prompts
 /**
  * Built-in ElevenLabs voice ("Sarah": female, American) that free accounts can use. Voices from
@@ -14,12 +15,42 @@ const MODEL = 'eleven_flash_v2_5'; // lowest latency; good for short prompts
  * is used instead until the app restarts.
  */
 export const FALLBACK_VOICE_ID = 'EXAVITQu4vr4xnSDxMaL';
-let activeVoice = VOICE_ID;
 
-/** The voice actually in use (changes to the fallback if the chosen one needs a paid plan). */
-export const activeVoiceId = () => activeVoice;
+export interface ElevenVoice {
+  id: string;
+  name: string;
+  description: string;
+}
 
-export const elevenLabsConfigured = API_KEY.startsWith('sk_') && VOICE_ID.length > 0;
+/**
+ * Voices to choose from. The built-in ones work on free ElevenLabs accounts; each has a clearly
+ * different character so you can hear what ElevenLabs voices sound like.
+ */
+export const ELEVEN_VOICES: ElevenVoice[] = [
+  ...(CUSTOM_VOICE_ID
+    ? [
+        {
+          id: CUSTOM_VOICE_ID,
+          name: 'Jessa',
+          description: 'Warm and casual. Needs a paid ElevenLabs plan; otherwise Sarah speaks.',
+        },
+      ]
+    : []),
+  { id: FALLBACK_VOICE_ID, name: 'Sarah', description: 'Clear and professional.' },
+  { id: 'SAz9YHcvj6GT2YYXdXww', name: 'River', description: 'Calm and relaxed.' },
+  { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George', description: 'Warm British storyteller.' },
+];
+
+export const DEFAULT_ELEVEN_VOICE = ELEVEN_VOICES[0]!.id;
+
+/** Voices refused because they need a paid plan; Sarah stands in for them. */
+const needsPaidPlan = new Set<string>();
+
+/** The voice that will actually speak for a requested one. */
+export const resolveVoice = (requested: string) =>
+  needsPaidPlan.has(requested) ? FALLBACK_VOICE_ID : requested;
+
+export const elevenLabsConfigured = API_KEY.startsWith('sk_');
 
 const MAX_CACHE_ENTRIES = 500;
 
@@ -61,9 +92,9 @@ const inflight = new Map<string, Promise<Blob | null>>();
  * repeated failures (offline, bad key, quota) it pauses for a minute so the built-in voice
  * takes over without delays.
  */
-export function getClip(text: string, rate: number): Promise<Blob | null> {
+export function getClip(text: string, rate: number, requestedVoice: string): Promise<Blob | null> {
   const speed = elevenLabsSpeed(rate);
-  const voice = activeVoice;
+  const voice = resolveVoice(requestedVoice);
   const key = hashKey(`${voice}|${speed}|${text}`);
   const existing = inflight.get(key);
   if (existing) return existing;
@@ -78,9 +109,9 @@ export function getClip(text: string, rate: number): Promise<Blob | null> {
       return blob;
     } catch (e) {
       if (e instanceof PaidVoiceError && voice !== FALLBACK_VOICE_ID) {
-        activeVoice = FALLBACK_VOICE_ID;
+        needsPaidPlan.add(voice);
         inflight.delete(key);
-        return getClip(text, rate);
+        return getClip(text, rate, FALLBACK_VOICE_ID);
       }
       failures++;
       if (failures >= 2) disabledUntil = Date.now() + 60_000;

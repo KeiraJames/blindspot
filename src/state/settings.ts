@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { DistanceUnit } from '../lib/nav/units';
+import { DEFAULT_ELEVEN_VOICE, elevenLabsConfigured } from '../lib/voice/elevenlabs';
 import { preferencesStorage } from './storage';
 
 export type SampleId = 'hall' | 'home';
@@ -10,8 +11,8 @@ export interface Settings {
   safetyAcknowledged: boolean;
   /** Multiplier on the system speaking rate: 0.4 (very slow) … 1.4 (fast). */
   speechRate: number;
-  /** ElevenLabs voice when available (falls back to the built-in voice automatically). */
-  naturalVoice: boolean;
+  /** ElevenLabs voice id, or 'iphone' for the built-in voice (always used offline). */
+  voice: string;
   vibration: boolean;
   /** Short sounds that pair with each vibration. */
   sounds: boolean;
@@ -31,7 +32,7 @@ const DEFAULTS = {
   safetyAcknowledged: false,
   // Slower than the iOS default: easier to follow while walking.
   speechRate: 0.75,
-  naturalVoice: true,
+  voice: elevenLabsConfigured ? DEFAULT_ELEVEN_VOICE : 'iphone',
   vibration: true,
   sounds: true,
   units: 'meters' as DistanceUnit,
@@ -51,7 +52,7 @@ export const useSettings = create<Settings>()(
     {
       name: 'pathsense.settings',
       storage: createJSONStorage(() => preferencesStorage),
-      version: 3,
+      version: 4,
       // Earlier versions had many more options; keep only what still exists.
       migrate: (old) => {
         const o = (old ?? {}) as Record<string, unknown>;
@@ -63,7 +64,11 @@ export const useSettings = create<Settings>()(
             typeof o.speechRate === 'number' && o.speechRate < 1 ? o.speechRate : DEFAULTS.speechRate,
           units: (o.units as DistanceUnit) ?? DEFAULTS.units,
           highContrast: Boolean(o.highContrast),
-          ...(typeof o.naturalVoice === 'boolean' ? { naturalVoice: o.naturalVoice } : {}),
+          ...(typeof o.voice === 'string'
+            ? { voice: o.voice }
+            : o.naturalVoice === false
+              ? { voice: 'iphone' }
+              : {}),
           ...(o.sample === 'home' || o.sample === 'hall' ? { sample: o.sample } : {}),
           ...(typeof o.vibration === 'boolean' ? { vibration: o.vibration } : {}),
           ...(typeof o.sounds === 'boolean' ? { sounds: o.sounds } : {}),

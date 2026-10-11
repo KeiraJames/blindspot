@@ -2,7 +2,7 @@ import { Screen } from '../components/Screen';
 import { Button, Card, Select, Slider, Toggle } from '../components/ui';
 import { cue, say, voice } from '../lib/feedback';
 import type { DistanceUnit } from '../lib/nav/units';
-import { elevenLabsConfigured } from '../lib/voice/elevenlabs';
+import { ELEVEN_VOICES, elevenLabsConfigured } from '../lib/voice/elevenlabs';
 import { useSettings } from '../state/settings';
 
 const SAMPLE = 'In 5 meters, turn left. Then walk through the door to the kitchen.';
@@ -39,19 +39,42 @@ export default function SettingsScreen() {
         />
         <Button onClick={() => void say(SAMPLE)}>Hear a sample</Button>
         {elevenLabsConfigured ? (
-          <Toggle
-            label="Natural voice"
-            description="Uses the ElevenLabs voice. Directions are sent as text to ElevenLabs. Without internet, the iPhone voice is used."
-            checked={s.naturalVoice}
-            onChange={(v) => {
-              s.set({ naturalVoice: v });
-              voice.stop();
-              setTimeout(() => void say(v ? 'This is the natural voice.' : 'This is the iPhone voice.'), 100);
-            }}
-          />
+          <>
+            <Select
+              label="Voice"
+              value={s.voice}
+              onChange={(e) => {
+                const id = e.target.value;
+                s.set({ voice: id });
+                voice.stop();
+                const v = ELEVEN_VOICES.find((x) => x.id === id);
+                // Let the new voice introduce itself once the setting has applied.
+                setTimeout(
+                  () =>
+                    void say(
+                      v
+                        ? `Hi, I'm ${v.name}. In 5 meters, turn left.`
+                        : 'This is the iPhone voice. In 5 meters, turn left.',
+                    ),
+                  150,
+                );
+              }}
+            >
+              {ELEVEN_VOICES.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}: {v.description}
+                </option>
+              ))}
+              <option value="iphone">iPhone voice: works offline, nothing sent online.</option>
+            </Select>
+            <p className="text-muted text-sm">
+              ElevenLabs voices send the words being spoken to ElevenLabs. Without internet, the iPhone voice
+              is used.
+            </p>
+          </>
         ) : (
           <p className="text-muted text-sm">
-            Natural voice: not set up. Add an ElevenLabs key to .env.local.
+            ElevenLabs voices: not set up. Add an ElevenLabs key to .env.local.
           </p>
         )}
         <Select

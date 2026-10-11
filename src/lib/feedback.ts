@@ -24,9 +24,9 @@ const initial = useSettings.getState();
 export const voice = new VoiceGuide({
   enabled: true,
   rate: initial.speechRate,
-  natural: initial.naturalVoice,
+  voice: initial.voice,
 });
-useSettings.subscribe((s) => voice.update({ rate: s.speechRate, natural: s.naturalVoice }));
+useSettings.subscribe((s) => voice.update({ rate: s.speechRate, voice: s.voice }));
 
 // ---- VoiceOver awareness ---------------------------------------------------------------
 // When VoiceOver is on it already reads each screen; the app then speaks only what VoiceOver

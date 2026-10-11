@@ -4,10 +4,10 @@ const speak = vi.fn(async (_options: unknown) => undefined);
 vi.mock('../../plugins/speech', () => ({
   Speech: { speak: (o: unknown) => speak(o), stop: vi.fn(async () => undefined) },
 }));
-const getClip = vi.fn<(text: string, rate: number) => Promise<Blob | null>>();
+const getClip = vi.fn<(text: string, rate: number, voice: string) => Promise<Blob | null>>();
 let ready = true;
 vi.mock('./elevenlabs', () => ({
-  getClip: (t: string, r: number) => getClip(t, r),
+  getClip: (t: string, r: number, v: string) => getClip(t, r, v),
   elevenLabsReady: () => ready,
 }));
 
@@ -23,16 +23,16 @@ describe('VoiceGuide with the natural voice', () => {
 
   it('falls back to the built-in voice when no clip comes back', async () => {
     getClip.mockResolvedValue(null);
-    const v = new VoiceGuide({ enabled: true, rate: 0.75, natural: true });
+    const v = new VoiceGuide({ enabled: true, rate: 0.75, voice: 'river' });
     await v.say('Turn left.');
-    expect(getClip).toHaveBeenCalledWith('Turn left.', 0.75);
+    expect(getClip).toHaveBeenCalledWith('Turn left.', 0.75, 'river');
     expect(speak).toHaveBeenCalledWith({ text: 'Turn left.', rate: 0.75 });
   });
 
   it("doesn't wait for a slow network", async () => {
     vi.useFakeTimers();
     getClip.mockReturnValue(new Promise(() => undefined)); // never resolves
-    const v = new VoiceGuide({ enabled: true, rate: 0.75, natural: true });
+    const v = new VoiceGuide({ enabled: true, rate: 0.75, voice: 'river' });
     const done = v.say('Turn right.');
     await vi.advanceTimersByTimeAsync(1600);
     await done;
@@ -41,10 +41,10 @@ describe('VoiceGuide with the natural voice', () => {
   });
 
   it('uses only the built-in voice when the natural voice is off or unavailable', async () => {
-    const off = new VoiceGuide({ enabled: true, rate: 1, natural: false });
+    const off = new VoiceGuide({ enabled: true, rate: 1, voice: 'iphone' });
     await off.say('Hello.');
     ready = false;
-    const unavailable = new VoiceGuide({ enabled: true, rate: 1, natural: true });
+    const unavailable = new VoiceGuide({ enabled: true, rate: 1, voice: 'river' });
     await unavailable.say('Hi.');
     expect(getClip).not.toHaveBeenCalled();
     expect(speak).toHaveBeenCalledTimes(2);
@@ -76,11 +76,14 @@ describe('voice fallback for free accounts', () => {
           : new Response(new Blob(['mp3']), { status: 200 });
       }),
     );
-    const clip = await real.getClip('Turn left.', 0.75);
+    const clip = await real.getClip('Turn left.', 0.75, 'library-voice');
     expect(clip).not.toBeNull();
     expect(urls[0]).toContain('library-voice');
     expect(urls[1]).toContain(real.FALLBACK_VOICE_ID);
-    expect(real.activeVoiceId()).toBe(real.FALLBACK_VOICE_ID);
+    expect(real.resolveVoice('library-voice')).toBe(real.FALLBACK_VOICE_ID);
+    // Free voices are untouched.
+    expect(real.resolveVoice('SAz9YHcvj6GT2YYXdXww')).toBe('SAz9YHcvj6GT2YYXdXww');
+    expect(real.ELEVEN_VOICES.map((v) => v.name)).toEqual(['Jessa', 'Sarah', 'River', 'George']);
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
