@@ -77,7 +77,16 @@ export const useStudio = create<StudioState>((set, get) => {
     connectKind: 'walk',
     dragOrigin: null,
 
-    load: (mapId, graph) => set({ mapId, graph, past: [], future: [], dirty: false, floorId: graph.floors[0]?.id ?? null, selection: [] }),
+    load: (mapId, graph) =>
+      set({
+        mapId,
+        graph,
+        past: [],
+        future: [],
+        dirty: false,
+        floorId: graph.floors[0]?.id ?? null,
+        selection: [],
+      }),
     apply: (fn) => {
       const g = get().graph;
       if (g) commit(fn(g));
@@ -85,7 +94,13 @@ export const useStudio = create<StudioState>((set, get) => {
     undo: () => {
       const { past, graph, future } = get();
       if (!graph || past.length === 0) return;
-      set({ graph: past.at(-1)!, past: past.slice(0, -1), future: [graph, ...future], dirty: true, selection: [] });
+      set({
+        graph: past.at(-1)!,
+        past: past.slice(0, -1),
+        future: [graph, ...future],
+        dirty: true,
+        selection: [],
+      });
     },
     redo: () => {
       const { past, graph, future } = get();
@@ -99,7 +114,14 @@ export const useStudio = create<StudioState>((set, get) => {
     setConnectKind: (connectKind) => set({ connectKind }),
     select: (id, additive) =>
       set((s) => ({
-        selection: id === null ? [] : additive ? (s.selection.includes(id) ? s.selection.filter((x) => x !== id) : [...s.selection, id]) : [id],
+        selection:
+          id === null
+            ? []
+            : additive
+              ? s.selection.includes(id)
+                ? s.selection.filter((x) => x !== id)
+                : [...s.selection, id]
+              : [id],
       })),
 
     addNode: (p, kind) => {
@@ -108,7 +130,21 @@ export const useStudio = create<StudioState>((set, get) => {
       const id = newId('n');
       get().apply((g) => ({
         ...g,
-        nodes: [...g.nodes, { id, kind: k, floorId: floorId ?? g.floors[0]!.id, position: { x: snap(p.x), y: snap(p.y) }, label: DEFAULT_LABEL[k], ...(k === 'elevator' ? { poiType: 'elevator' as const } : k === 'landing' ? { poiType: 'stairs' as const } : {}) }],
+        nodes: [
+          ...g.nodes,
+          {
+            id,
+            kind: k,
+            floorId: floorId ?? g.floors[0]!.id,
+            position: { x: snap(p.x), y: snap(p.y) },
+            label: DEFAULT_LABEL[k],
+            ...(k === 'elevator'
+              ? { poiType: 'elevator' as const }
+              : k === 'landing'
+                ? { poiType: 'stairs' as const }
+                : {}),
+          },
+        ],
       }));
       set({ selection: [id] });
       return id;
@@ -132,12 +168,19 @@ export const useStudio = create<StudioState>((set, get) => {
     dragNode: (id, p) => {
       const g = get().graph;
       if (!g) return;
-      const next = refreshEdgeLengths({ ...g, nodes: g.nodes.map((n) => (n.id === id ? { ...n, position: { x: snap(p.x), y: snap(p.y) } } : n)) }, new Set([id]));
+      const next = refreshEdgeLengths(
+        {
+          ...g,
+          nodes: g.nodes.map((n) => (n.id === id ? { ...n, position: { x: snap(p.x), y: snap(p.y) } } : n)),
+        },
+        new Set([id]),
+      );
       set({ graph: next });
     },
     endDrag: () => {
       const { dragOrigin, graph, past } = get();
-      if (dragOrigin && graph && dragOrigin !== graph) set({ past: [...past, dragOrigin].slice(-HISTORY), future: [], dirty: true });
+      if (dragOrigin && graph && dragOrigin !== graph)
+        set({ past: [...past, dragOrigin].slice(-HISTORY), future: [], dirty: true });
       set({ dragOrigin: null });
     },
     nudge: (id, dx, dy) => {
@@ -151,11 +194,19 @@ export const useStudio = create<StudioState>((set, get) => {
       const top = g.floors.reduce((a, b) => (b.level > a.level ? b : a), g.floors[0]!);
       const level = (top?.level ?? -1) + 1;
       const id = newId('floor');
-      get().apply((x) => ({ ...x, floors: [...x.floors, { id, name: level === 0 ? 'Ground floor' : `Floor ${level}`, level, elevation: level * 3.2 }] }));
+      get().apply((x) => ({
+        ...x,
+        floors: [
+          ...x.floors,
+          { id, name: level === 0 ? 'Ground floor' : `Floor ${level}`, level, elevation: level * 3.2 },
+        ],
+      }));
       set({ floorId: id, selection: [] });
     },
     updateFloor: (id, patch) =>
-      get().apply((g) => refreshEdgeLengths({ ...g, floors: g.floors.map((f) => (f.id === id ? { ...f, ...patch } : f)) })),
+      get().apply((g) =>
+        refreshEdgeLengths({ ...g, floors: g.floors.map((f) => (f.id === id ? { ...f, ...patch } : f)) }),
+      ),
     deleteFloor: (id) => {
       const g = get().graph;
       if (!g || g.floors.length <= 1) return;

@@ -70,7 +70,22 @@ export class FirebaseMapRepository implements MapRepository {
     };
   }
 
+  private profileSaved = false;
+
+  /** Keep users/{uid} current so other members see a name instead of an ID. */
+  private async ensureProfile() {
+    if (this.profileSaved) return;
+    const u = this.fb.auth.currentUser;
+    if (!u) return;
+    this.profileSaved = true;
+    const displayName = u.displayName || u.email?.split('@')[0] || 'PathSense user';
+    await setDoc(doc(this.fb.db, 'users', u.uid), { displayName }, { merge: true }).catch(
+      () => (this.profileSaved = false),
+    );
+  }
+
   async listMaps() {
+    void this.ensureProfile();
     await this.listOrgs();
     const maps = collection(this.fb.db, 'maps');
     const [mine, viaOrg] = await Promise.all([
@@ -83,14 +98,26 @@ export class FirebaseMapRepository implements MapRepository {
   }
 
   async getMap(mapId: string) {
-    const snap = await getDoc(doc(this.fb.db, 'maps', mapId)).catch(() => getDocFromCache(doc(this.fb.db, 'maps', mapId)));
+    const snap = await getDoc(doc(this.fb.db, 'maps', mapId)).catch(() =>
+      getDocFromCache(doc(this.fb.db, 'maps', mapId)),
+    );
     if (!snap.exists()) return null;
     const d = snap.data() as MapDoc;
     if (d.orgId && !this.orgRoles.has(d.orgId)) await this.listOrgs();
     return this.toSummary(snap.id, d);
   }
 
-  async createMap({ name, description, orgId = null, graph }: { name: string; description?: string; orgId?: string | null; graph?: MapGraph }) {
+  async createMap({
+    name,
+    description,
+    orgId = null,
+    graph,
+  }: {
+    name: string;
+    description?: string;
+    orgId?: string | null;
+    graph?: MapGraph;
+  }) {
     const ref_ = doc(collection(this.fb.db, 'maps'));
     const batch = writeBatch(this.fb.db);
     batch.set(ref_, {
@@ -104,13 +131,22 @@ export class FirebaseMapRepository implements MapRepository {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-    if (graph) batch.set(doc(this.fb.db, 'maps', ref_.id, 'draft', 'current'), { graphJson: JSON.stringify(graph), updatedBy: this.uid, updatedAt: serverTimestamp() });
+    if (graph)
+      batch.set(doc(this.fb.db, 'maps', ref_.id, 'draft', 'current'), {
+        graphJson: JSON.stringify(graph),
+        updatedBy: this.uid,
+        updatedAt: serverTimestamp(),
+      });
     await batch.commit();
     return ref_.id;
   }
 
   async renameMap(mapId: string, name: string, description?: string) {
-    await updateDoc(doc(this.fb.db, 'maps', mapId), { name, ...(description !== undefined ? { description } : {}), updatedAt: serverTimestamp() });
+    await updateDoc(doc(this.fb.db, 'maps', mapId), {
+      name,
+      ...(description !== undefined ? { description } : {}),
+      updatedAt: serverTimestamp(),
+    });
   }
 
   async deleteMap(mapId: string) {
@@ -161,10 +197,19 @@ export class FirebaseMapRepository implements MapRepository {
   }
 
   async listVersions(mapId: string) {
-    const snap = await getDocs(query(collection(this.fb.db, 'maps', mapId, 'versions'), orderBy('number', 'desc'), limit(50)));
+    const snap = await getDocs(
+      query(collection(this.fb.db, 'maps', mapId, 'versions'), orderBy('number', 'desc'), limit(50)),
+    );
     return snap.docs.map((d) => {
       const v = d.data();
-      return { number: v.number, note: v.note, createdBy: v.createdBy, createdAt: ms(v.createdAt), status: v.status, issues: v.issues } as MapVersion;
+      return {
+        number: v.number,
+        note: v.note,
+        createdBy: v.createdBy,
+        createdAt: ms(v.createdAt),
+        status: v.status,
+        issues: v.issues,
+      } as MapVersion;
     });
   }
 
@@ -185,9 +230,13 @@ export class FirebaseMapRepository implements MapRepository {
       return result;
     } catch (err) {
       // Offline: fall back to the last version we loaded (PRD: offline navigate if cached).
-      const cached = await idb.get<{ number: number; graph: MapGraph }>('kv', cacheKey).catch(() => undefined);
+      const cached = await idb
+        .get<{ number: number; graph: MapGraph }>('kv', cacheKey)
+        .catch(() => undefined);
       if (cached) return cached;
-      const fromFs = await getDocsFromCache(query(collection(this.fb.db, 'maps', mapId, 'versions'), orderBy('number', 'desc'), limit(1))).catch(() => null);
+      const fromFs = await getDocsFromCache(
+        query(collection(this.fb.db, 'maps', mapId, 'versions'), orderBy('number', 'desc'), limit(1)),
+      ).catch(() => null);
       const d = fromFs?.docs[0]?.data();
       if (d) return { number: d.number as number, graph: JSON.parse(d.graphJson as string) as MapGraph };
       throw err;
@@ -195,7 +244,10 @@ export class FirebaseMapRepository implements MapRepository {
   }
 
   async saveScan(mapId: string, draft: ScanDraft, onProgress?: (fraction: number) => void) {
-    const files = Object.entries(draft.result.files).filter(([, p]) => Boolean(p)) as [keyof ScanResult['files'], string][];
+    const files = Object.entries(draft.result.files).filter(([, p]) => Boolean(p)) as [
+      keyof ScanResult['files'],
+      string,
+    ][];
     const uploaded: ScanDraft['uploadedPaths'] = { ...draft.uploadedPaths };
     let done = 0;
     for (const [kind, localPath] of files) {
@@ -206,7 +258,9 @@ export class FirebaseMapRepository implements MapRepository {
       const blob = await (await fetch(Capacitor.convertFileSrc(localPath))).blob();
       const ext = localPath.split('.').pop() ?? 'bin';
       const path = `maps/${mapId}/scans/${draft.result.scanId}/${kind}.${ext}`;
-      const task = uploadBytesResumable(ref(this.fb.storage, path), blob, { contentType: blob.type || 'application/octet-stream' });
+      const task = uploadBytesResumable(ref(this.fb.storage, path), blob, {
+        contentType: blob.type || 'application/octet-stream',
+      });
       await new Promise<void>((resolve, reject) =>
         task.on(
           'state_changed',
@@ -219,7 +273,12 @@ export class FirebaseMapRepository implements MapRepository {
       done++;
     }
     const { files: _localFiles, ...resultWithoutFiles } = draft.result;
-    const saved: ScanDraft = { ...draft, mapId, status: draft.status === 'placed' ? 'placed' : 'uploaded', uploadedPaths: uploaded };
+    const saved: ScanDraft = {
+      ...draft,
+      mapId,
+      status: draft.status === 'placed' ? 'placed' : 'uploaded',
+      uploadedPaths: uploaded,
+    };
     await setDoc(doc(this.fb.db, 'maps', mapId, 'scans', draft.result.scanId), {
       name: draft.name,
       floorId: draft.floorId,
@@ -239,7 +298,9 @@ export class FirebaseMapRepository implements MapRepository {
   }
 
   async listScans(mapId: string) {
-    const snap = await getDocs(query(collection(this.fb.db, 'maps', mapId, 'scans'), orderBy('createdAt', 'desc')));
+    const snap = await getDocs(
+      query(collection(this.fb.db, 'maps', mapId, 'scans'), orderBy('createdAt', 'desc')),
+    );
     return snap.docs.map((d) => {
       const v = d.data();
       return {
@@ -268,8 +329,14 @@ export class FirebaseMapRepository implements MapRepository {
     if (!remote) return null;
     const bytes = new Uint8Array(await getBytes(ref(this.fb.storage, remote)));
     let bin = '';
-    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-    const res = await Filesystem.writeFile({ path: local, directory: Directory.Cache, data: btoa(bin), recursive: true });
+    for (let i = 0; i < bytes.length; i += 0x8000)
+      bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    const res = await Filesystem.writeFile({
+      path: local,
+      directory: Directory.Cache,
+      data: btoa(bin),
+      recursive: true,
+    });
     return res.uri;
   }
 
@@ -284,7 +351,11 @@ export class FirebaseMapRepository implements MapRepository {
       }),
     );
     const nameOf = new Map(names);
-    return Object.entries(d.members).map(([uid, role]) => ({ uid, role, displayName: uid === this.uid ? 'You' : nameOf.get(uid) })) as Member[];
+    return Object.entries(d.members).map(([uid, role]) => ({
+      uid,
+      role,
+      displayName: uid === this.uid ? 'You' : nameOf.get(uid),
+    })) as Member[];
   }
 
   async setMemberRole(mapId: string, uid: string, role: Role | null) {
@@ -299,28 +370,48 @@ export class FirebaseMapRepository implements MapRepository {
   }
 
   async createInvite(target: { mapId?: string; orgId?: string }, role: Role): Promise<Invite> {
-    const call = httpsCallable<{ mapId?: string; orgId?: string; role: Role }, Invite>(this.fb.functions, 'createInvite');
+    const call = httpsCallable<{ mapId?: string; orgId?: string; role: Role }, Invite>(
+      this.fb.functions,
+      'createInvite',
+    );
     return (await call({ ...target, role })).data;
   }
 
   async acceptInvite(code: string) {
-    const call = httpsCallable<{ code: string }, { mapId?: string; orgId?: string }>(this.fb.functions, 'acceptInvite');
+    const call = httpsCallable<{ code: string }, { mapId?: string; orgId?: string }>(
+      this.fb.functions,
+      'acceptInvite',
+    );
     const res = (await call({ code: code.trim().toUpperCase() })).data;
     if (res.orgId) await this.listOrgs();
     return res;
   }
 
   async listOrgs(): Promise<Org[]> {
-    const snap = await getDocs(query(collection(this.fb.db, 'orgs'), where('memberUids', 'array-contains', this.uid)));
-    const orgs = snap.docs.map((d) => ({ id: d.id, name: d.data().name as string, role: (d.data().members as Record<string, Role>)[this.uid]! }));
+    const snap = await getDocs(
+      query(collection(this.fb.db, 'orgs'), where('memberUids', 'array-contains', this.uid)),
+    );
+    const orgs = snap.docs.map((d) => ({
+      id: d.id,
+      name: d.data().name as string,
+      role: (d.data().members as Record<string, Role>)[this.uid]!,
+    }));
     this.orgRoles = new Map(orgs.map((o) => [o.id, o.role]));
     return orgs;
   }
 
   async createOrg(name: string) {
     const ref_ = doc(collection(this.fb.db, 'orgs'));
-    await setDoc(ref_, { name, ownerId: this.uid, members: { [this.uid]: 'owner' }, memberUids: [this.uid], createdAt: serverTimestamp() });
-    await updateDoc(doc(this.fb.db, 'users', this.uid), { orgIds: arrayUnion(ref_.id) }).catch(() => undefined);
+    await setDoc(ref_, {
+      name,
+      ownerId: this.uid,
+      members: { [this.uid]: 'owner' },
+      memberUids: [this.uid],
+      createdAt: serverTimestamp(),
+    });
+    await updateDoc(doc(this.fb.db, 'users', this.uid), { orgIds: arrayUnion(ref_.id) }).catch(
+      () => undefined,
+    );
     return ref_.id;
   }
 }

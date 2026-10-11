@@ -46,7 +46,10 @@ export function inviteCode(randomBytes: (n: number) => Uint8Array, length = 8): 
 export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const INVITE_MAX_USES = 25;
 
-export function inviteUsable(invite: { expiresAt: number; uses: number; maxUses: number }, now: number): string | null {
+export function inviteUsable(
+  invite: { expiresAt: number; uses: number; maxUses: number },
+  now: number,
+): string | null {
   if (invite.expiresAt < now) return 'This invite has expired. Ask for a new code.';
   if (invite.uses >= invite.maxUses) return 'This invite has been used too many times. Ask for a new code.';
   return null;
@@ -67,7 +70,12 @@ export function dayKey(now: Date): string {
 }
 
 /** New usage after spending `chars`, or null when it would exceed the daily limit. */
-export function spendQuota(usage: { day?: string; chars?: number } | undefined, chars: number, limit: number, today: string): { day: string; chars: number } | null {
+export function spendQuota(
+  usage: { day?: string; chars?: number } | undefined,
+  chars: number,
+  limit: number,
+  today: string,
+): { day: string; chars: number } | null {
   const used = usage?.day === today ? (usage.chars ?? 0) : 0;
   if (used + chars > limit) return null;
   return { day: today, chars: used + chars };

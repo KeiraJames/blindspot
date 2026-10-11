@@ -45,9 +45,30 @@ export class LocalMapRepository implements MapRepository {
     const graph = buildSampleMap();
     const now = Date.now();
     await this.write({
-      summary: { id: SAMPLE_MAP_ID, name: SAMPLE_MAP_NAME, description: 'Two-floor demo dorm', ownerId: LOCAL_UID, orgId: null, role: 'owner', latestVersion: 1, updatedAt: now },
+      summary: {
+        id: SAMPLE_MAP_ID,
+        name: SAMPLE_MAP_NAME,
+        description: 'Two-floor demo dorm',
+        ownerId: LOCAL_UID,
+        orgId: null,
+        role: 'owner',
+        latestVersion: 1,
+        updatedAt: now,
+      },
       draft: graph,
-      versions: [{ meta: { number: 1, note: 'Sample map', createdBy: LOCAL_UID, createdAt: now, status: 'valid', issues: [] }, graph }],
+      versions: [
+        {
+          meta: {
+            number: 1,
+            note: 'Sample map',
+            createdBy: LOCAL_UID,
+            createdAt: now,
+            status: 'valid',
+            issues: [],
+          },
+          graph,
+        },
+      ],
       scans: [],
     });
   }
@@ -64,7 +85,16 @@ export class LocalMapRepository implements MapRepository {
   async createMap({ name, description, graph }: { name: string; description?: string; graph?: MapGraph }) {
     const id = newId('map');
     await this.write({
-      summary: { id, name, description, ownerId: LOCAL_UID, orgId: null, role: 'owner', latestVersion: null, updatedAt: Date.now() },
+      summary: {
+        id,
+        name,
+        description,
+        ownerId: LOCAL_UID,
+        orgId: null,
+        role: 'owner',
+        latestVersion: null,
+        updatedAt: Date.now(),
+      },
       draft: graph ?? emptyGraph(),
       versions: [],
       scans: [],
@@ -96,10 +126,19 @@ export class LocalMapRepository implements MapRepository {
     await this.mutate(mapId, (r) => {
       number = (r.versions.at(-1)?.meta.number ?? 0) + 1;
       const status = result.ok ? 'valid' : 'invalid';
-      r.versions.push({ meta: { number, note, createdBy: LOCAL_UID, createdAt: Date.now(), status, issues: result.issues }, graph });
+      r.versions.push({
+        meta: { number, note, createdBy: LOCAL_UID, createdAt: Date.now(), status, issues: result.issues },
+        graph,
+      });
       if (result.ok) r.summary.latestVersion = number;
     });
-    if (!result.ok) throw new Error(result.issues.filter((i) => i.severity === 'error').map((i) => i.message).join(' '));
+    if (!result.ok)
+      throw new Error(
+        result.issues
+          .filter((i) => i.severity === 'error')
+          .map((i) => i.message)
+          .join(' '),
+      );
     return number;
   }
   async listVersions(mapId: string) {

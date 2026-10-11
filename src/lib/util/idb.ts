@@ -20,7 +20,11 @@ function open(): Promise<IDBDatabase> {
   return dbPromise;
 }
 
-function run<T>(store: StoreName, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+function run<T>(
+  store: StoreName,
+  mode: IDBTransactionMode,
+  fn: (s: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
   return open().then(
     (db) =>
       new Promise<T>((resolve, reject) => {
@@ -33,10 +37,13 @@ function run<T>(store: StoreName, mode: IDBTransactionMode, fn: (s: IDBObjectSto
 }
 
 export const idb = {
-  get: <T>(store: StoreName, key: string) => run<T | undefined>(store, 'readonly', (s) => s.get(key) as IDBRequest<T | undefined>),
-  set: (store: StoreName, key: string, value: unknown) => run(store, 'readwrite', (s) => s.put(value, key)).then(() => undefined),
+  get: <T>(store: StoreName, key: string) =>
+    run<T | undefined>(store, 'readonly', (s) => s.get(key) as IDBRequest<T | undefined>),
+  set: (store: StoreName, key: string, value: unknown) =>
+    run(store, 'readwrite', (s) => s.put(value, key)).then(() => undefined),
   del: (store: StoreName, key: string) => run(store, 'readwrite', (s) => s.delete(key)).then(() => undefined),
-  keys: (store: StoreName) => run<IDBValidKey[]>(store, 'readonly', (s) => s.getAllKeys()).then((k) => k.map(String)),
+  keys: (store: StoreName) =>
+    run<IDBValidKey[]>(store, 'readonly', (s) => s.getAllKeys()).then((k) => k.map(String)),
   values: <T>(store: StoreName) => run<T[]>(store, 'readonly', (s) => s.getAll() as IDBRequest<T[]>),
 };
 

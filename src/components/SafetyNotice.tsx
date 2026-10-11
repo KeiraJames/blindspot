@@ -18,7 +18,15 @@ export function SafetyNotice() {
   if (ack) return null;
   return (
     <div className="fixed inset-0 z-50 bg-bg flex items-center justify-center p-6 safe-top safe-bottom">
-      <div ref={ref} role="alertdialog" aria-modal="true" aria-labelledby="safety-title" aria-describedby="safety-body" tabIndex={-1} className="max-w-md flex flex-col gap-5 outline-none">
+      <div
+        ref={ref}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="safety-title"
+        aria-describedby="safety-body"
+        tabIndex={-1}
+        className="max-w-md flex flex-col gap-5 outline-none"
+      >
         <h1 id="safety-title" className="text-3xl font-bold">
           Before you start
         </h1>
@@ -26,7 +34,10 @@ export function SafetyNotice() {
           {SAFETY_TEXT}
         </p>
         <ul className="list-disc pl-6 text-muted">
-          <li>Scanning needs an iPhone or iPad Pro with LiDAR. Any iPhone on iOS 17 can navigate maps that others scanned.</li>
+          <li>
+            Scanning needs an iPhone or iPad Pro with LiDAR. Any iPhone on iOS 17 can navigate maps that
+            others scanned.
+          </li>
           <li>Camera and LiDAR data stay on your phone. A scan is uploaded only when you save it.</li>
         </ul>
         <Button

@@ -47,7 +47,12 @@ export interface MapRepository {
   readonly kind: 'firebase' | 'local';
   listMaps(): Promise<MapSummary[]>;
   getMap(mapId: string): Promise<MapSummary | null>;
-  createMap(input: { name: string; description?: string; orgId?: string | null; graph?: MapGraph }): Promise<string>;
+  createMap(input: {
+    name: string;
+    description?: string;
+    orgId?: string | null;
+    graph?: MapGraph;
+  }): Promise<string>;
   renameMap(mapId: string, name: string, description?: string): Promise<void>;
   deleteMap(mapId: string): Promise<void>;
   /** Move a map into (or out of) an organization. Owner only. */

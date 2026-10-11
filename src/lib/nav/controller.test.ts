@@ -33,7 +33,9 @@ describe('NavigationController', () => {
     const { c } = make();
     expect(c.findDestination('take me to the kitchen')[0]?.id).toBe('g-kit');
     expect(c.findDestination('room 202')[0]?.id).toBe('f1-202');
-    expect(c.findDestination('bathroom').map((d) => d.id)).toEqual(expect.arrayContaining(['g-bath', 'f1-bath']));
+    expect(c.findDestination('bathroom').map((d) => d.id)).toEqual(
+      expect.arrayContaining(['g-bath', 'f1-bath']),
+    );
   });
 
   it('browses and selects with gestures', () => {

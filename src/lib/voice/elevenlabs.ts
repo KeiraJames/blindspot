@@ -15,7 +15,9 @@ export async function synthesize(text: string, voiceId: string, signal?: AbortSi
   const fb = firebase();
   if (!fb) throw new Error('Firebase is not configured');
   if (!fb.auth.currentUser) throw new Error('Sign in to use the guide voice');
-  const call = httpsCallable<{ text: string; voiceId: string }, TtsResponse>(fb.functions, 'tts', { timeout: 8000 });
+  const call = httpsCallable<{ text: string; voiceId: string }, TtsResponse>(fb.functions, 'tts', {
+    timeout: 8000,
+  });
   const res = await call({ text, voiceId });
   if (signal?.aborted) throw new DOMException('aborted', 'AbortError');
   const bin = atob(res.data.audio);

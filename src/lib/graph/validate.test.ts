@@ -39,12 +39,18 @@ describe('validateGraph', () => {
     g = connect(g, 'g-lobby', 'f1-lounge', 'walk');
     const r = validateGraph(g);
     expect(r.ok).toBe(false);
-    expect(r.issues.map((i) => i.code)).toEqual(expect.arrayContaining(['dangling_edge', 'cross_floor_walk_edge']));
+    expect(r.issues.map((i) => i.code)).toEqual(
+      expect.arrayContaining(['dangling_edge', 'cross_floor_walk_edge']),
+    );
   });
 
   it('warns when no exit exists', () => {
     const g = buildSampleMap();
-    g.nodes = g.nodes.map((n) => ({ ...n, exterior: false, poiType: n.poiType === 'exit' ? undefined : n.poiType }));
+    g.nodes = g.nodes.map((n) => ({
+      ...n,
+      exterior: false,
+      poiType: n.poiType === 'exit' ? undefined : n.poiType,
+    }));
     expect(validateGraph(g).issues.map((i) => i.code)).toContain('no_exit');
   });
 });
@@ -55,7 +61,9 @@ describe('graph edits', () => {
     g = mergeNodes(g, 'g-j2', 'g-kitd');
     expect(g.nodes.find((n) => n.id === 'g-kitd')).toBeUndefined();
     expect(g.edges.some((e) => e.from === 'g-kitd' || e.to === 'g-kitd')).toBe(false);
-    expect(g.edges.some((e) => (e.from === 'g-j2' && e.to === 'g-kit') || (e.from === 'g-kit' && e.to === 'g-j2'))).toBe(true);
+    expect(
+      g.edges.some((e) => (e.from === 'g-j2' && e.to === 'g-kit') || (e.from === 'g-kit' && e.to === 'g-j2')),
+    ).toBe(true);
     expect(g.edges.filter((e) => e.from === e.to)).toEqual([]);
   });
 

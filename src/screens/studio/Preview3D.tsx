@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { MapGraph } from '../../lib/graph/types';
 
-const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888';
+const css = (name: string) =>
+  getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888';
 
 /**
  * Stacked-floor 3D preview: room footprints as low walls, graph nodes and edges, vertical
@@ -28,7 +29,12 @@ export function Preview3D({ graph, floorId }: { graph: MapGraph; floorId: string
     scene.add(sun);
 
     const elev = new Map(graph.floors.map((f) => [f.id, f.elevation]));
-    const nodePos = new Map(graph.nodes.map((n) => [n.id, new THREE.Vector3(n.position.x, (elev.get(n.floorId) ?? 0) + 0.05, -n.position.y)]));
+    const nodePos = new Map(
+      graph.nodes.map((n) => [
+        n.id,
+        new THREE.Vector3(n.position.x, (elev.get(n.floorId) ?? 0) + 0.05, -n.position.y),
+      ]),
+    );
     const accent = new THREE.Color(css('--accent'));
     const fg = new THREE.Color(css('--fg'));
     const muted = new THREE.Color(css('--muted'));
@@ -39,16 +45,37 @@ export function Preview3D({ graph, floorId }: { graph: MapGraph; floorId: string
       const shape = new THREE.Shape(room.footprint.map((p) => new THREE.Vector2(p.x, p.y)));
       const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.6, bevelEnabled: false });
       geo.rotateX(-Math.PI / 2);
-      const mat = new THREE.MeshStandardMaterial({ color: room.floorId === floorId ? accent : muted, transparent: true, opacity: room.floorId === floorId ? 0.35 : 0.15 });
+      const mat = new THREE.MeshStandardMaterial({
+        color: room.floorId === floorId ? accent : muted,
+        transparent: true,
+        opacity: room.floorId === floorId ? 0.35 : 0.15,
+      });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.y = elev.get(room.floorId) ?? 0;
       scene.add(mesh);
-      scene.add(Object.assign(new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: fg })), { position: mesh.position.clone() }));
+      scene.add(
+        Object.assign(
+          new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: fg })),
+          { position: mesh.position.clone() },
+        ),
+      );
     }
 
     const sphere = new THREE.SphereGeometry(0.25, 12, 8);
     for (const n of graph.nodes) {
-      const m = new THREE.Mesh(sphere, new THREE.MeshStandardMaterial({ color: n.kind === 'room' ? accent : n.kind === 'door' ? new THREE.Color(css('--ok')) : n.kind === 'landing' || n.kind === 'elevator' ? warn : muted }));
+      const m = new THREE.Mesh(
+        sphere,
+        new THREE.MeshStandardMaterial({
+          color:
+            n.kind === 'room'
+              ? accent
+              : n.kind === 'door'
+                ? new THREE.Color(css('--ok'))
+                : n.kind === 'landing' || n.kind === 'elevator'
+                  ? warn
+                  : muted,
+        }),
+      );
       m.position.copy(nodePos.get(n.id)!);
       scene.add(m);
     }
@@ -60,8 +87,18 @@ export function Preview3D({ graph, floorId }: { graph: MapGraph; floorId: string
       if (!a || !b) continue;
       (e.kind === 'stairs' || e.kind === 'elevator' ? vpts : pts).push(a, b);
     }
-    scene.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: fg })));
-    scene.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(vpts), new THREE.LineBasicMaterial({ color: warn })));
+    scene.add(
+      new THREE.LineSegments(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineBasicMaterial({ color: fg }),
+      ),
+    );
+    scene.add(
+      new THREE.LineSegments(
+        new THREE.BufferGeometry().setFromPoints(vpts),
+        new THREE.LineBasicMaterial({ color: warn }),
+      ),
+    );
 
     for (const f of graph.floors) {
       const grid = new THREE.GridHelper(60, 60, muted, muted);
@@ -110,5 +147,12 @@ export function Preview3D({ graph, floorId }: { graph: MapGraph; floorId: string
   }, [graph, floorId]);
 
   const summary = `3D view of ${graph.floors.length} ${graph.floors.length === 1 ? 'floor' : 'floors'}, ${graph.rooms.length} scanned rooms, ${graph.nodes.length} places and ${graph.edges.length} connections. Drag to rotate.`;
-  return <div ref={host} role="img" aria-label={summary} className="w-full h-96 rounded-2xl border border-line overflow-hidden bg-surface" />;
+  return (
+    <div
+      ref={host}
+      role="img"
+      aria-label={summary}
+      className="w-full h-96 rounded-2xl border border-line overflow-hidden bg-surface"
+    />
+  );
 }

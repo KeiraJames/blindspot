@@ -80,7 +80,13 @@ export default function ScanScreen() {
     try {
       const { result } = await Scan.startCapture({ detectText: true });
       setResult(result);
-      setName((n) => n || (result.landmarks.find((l) => l.kind === 'room_number')?.text ? `Room ${result.landmarks.find((l) => l.kind === 'room_number')!.text}` : ''));
+      setName(
+        (n) =>
+          n ||
+          (result.landmarks.find((l) => l.kind === 'room_number')?.text
+            ? `Room ${result.landmarks.find((l) => l.kind === 'room_number')!.text}`
+            : ''),
+      );
       setPhase('review');
       const doors = result.openings.length;
       await cue(
@@ -130,7 +136,10 @@ export default function ScanScreen() {
     };
     await saveDraft(d);
     setPhase('saved');
-    void cue('confirm', repo.kind === 'firebase' ? 'Saved. It will upload on Wi-Fi.' : 'Saved on this device.');
+    void cue(
+      'confirm',
+      repo.kind === 'firebase' ? 'Saved. It will upload on Wi-Fi.' : 'Saved on this device.',
+    );
   };
 
   if (!support) return <Spinner />;
@@ -140,13 +149,17 @@ export default function ScanScreen() {
       {!support.supported && (
         <Card>
           <p role="alert">{support.reason}</p>
-          <p className="text-muted mt-2">You can still navigate any map that has been scanned and published.</p>
+          <p className="text-muted mt-2">
+            You can still navigate any map that has been scanned and published.
+          </p>
         </Card>
       )}
 
       {support.supported && phase === 'ready' && (
         <Card className="flex flex-col gap-4">
-          {support.reason === 'simulated' && <p className="text-warn">Development mode: the scanner is simulated in this browser.</p>}
+          {support.reason === 'simulated' && (
+            <p className="text-warn">Development mode: the scanner is simulated in this browser.</p>
+          )}
           <p>{START_TIPS}</p>
           {draft.data && draft.data.floors.length > 1 && (
             <Select label="Floor" value={floorId} onChange={(e) => setFloorId(e.target.value)}>
@@ -168,7 +181,12 @@ export default function ScanScreen() {
           <h2 className="text-xl font-bold">Scanning…</h2>
           <label className="flex flex-col gap-1">
             <span className="font-semibold">Coverage</span>
-            <progress max={1} value={progress?.coverage ?? 0} className="w-full h-4" aria-valuetext={`${Math.round((progress?.coverage ?? 0) * 100)} percent`} />
+            <progress
+              max={1}
+              value={progress?.coverage ?? 0}
+              className="w-full h-4"
+              aria-valuetext={`${Math.round((progress?.coverage ?? 0) * 100)} percent`}
+            />
           </label>
           <p aria-live="polite">
             {progress
@@ -190,7 +208,13 @@ export default function ScanScreen() {
         <Card className="flex flex-col gap-4">
           <h2 className="text-xl font-bold">Review scan</h2>
           <div className="flex gap-2 items-end">
-            <Field label="Room name" className="flex-1" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Room 214" />
+            <Field
+              label="Room name"
+              className="flex-1"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Room 214"
+            />
             <Button onClick={() => void dictate()} disabled={listening} aria-label="Say the room name">
               {listening ? 'Listening…' : 'Speak'}
             </Button>
@@ -198,7 +222,8 @@ export default function ScanScreen() {
           <ul className="list-disc pl-6">
             {result.openings.map((o, i) => (
               <li key={o.id}>
-                {o.category === 'door' ? 'Door' : 'Opening'} {i + 1}: {o.width.toFixed(2)} m wide ({o.confidence} confidence)
+                {o.category === 'door' ? 'Door' : 'Opening'} {i + 1}: {o.width.toFixed(2)} m wide (
+                {o.confidence} confidence)
               </li>
             ))}
             {result.stairs.map((s, i) => (
@@ -207,13 +232,12 @@ export default function ScanScreen() {
             {result.landmarks
               .filter((l) => l.text)
               .map((l, i) => (
-                <li key={i}>
-                  Sign read: “{l.text}”
-                </li>
+                <li key={i}>Sign read: “{l.text}”</li>
               ))}
           </ul>
           <p className={result.quality < 0.6 ? 'text-warn' : 'text-muted'}>
-            Scan quality {Math.round(result.quality * 100)}%. {result.quality < 0.6 ? 'Consider scanning again for better door detection.' : ''}
+            Scan quality {Math.round(result.quality * 100)}%.{' '}
+            {result.quality < 0.6 ? 'Consider scanning again for better door detection.' : ''}
           </p>
           <div className="grid grid-cols-2 gap-2">
             <Button variant="primary" large onClick={() => void save()}>

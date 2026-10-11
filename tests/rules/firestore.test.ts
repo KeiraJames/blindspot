@@ -1,5 +1,22 @@
-import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, runTransaction, collection, query, where, getDocs, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import {
+  assertFails,
+  assertSucceeds,
+  initializeTestEnvironment,
+  type RulesTestEnvironment,
+} from '@firebase/rules-unit-testing';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  runTransaction,
+  collection,
+  query,
+  where,
+  getDocs,
+  serverTimestamp,
+  deleteDoc,
+} from 'firebase/firestore';
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 
@@ -28,8 +45,19 @@ async function seed() {
       latestVersion: 1,
       versionCounter: 1,
     });
-    await setDoc(doc(a, 'maps/m1/versions/000001'), { number: 1, note: 'v1', graphJson: '{}', createdBy: 'owner', status: 'valid' });
-    await setDoc(doc(a, 'orgs/o1'), { name: 'Campus', ownerId: 'boss', members: { boss: 'owner', staff: 'editor', student: 'navigator' }, memberUids: ['boss', 'staff', 'student'] });
+    await setDoc(doc(a, 'maps/m1/versions/000001'), {
+      number: 1,
+      note: 'v1',
+      graphJson: '{}',
+      createdBy: 'owner',
+      status: 'valid',
+    });
+    await setDoc(doc(a, 'orgs/o1'), {
+      name: 'Campus',
+      ownerId: 'boss',
+      members: { boss: 'owner', staff: 'editor', student: 'navigator' },
+      memberUids: ['boss', 'staff', 'student'],
+    });
     await setDoc(doc(a, 'maps/m2'), {
       name: 'Library',
       ownerId: 'boss',
@@ -65,8 +93,12 @@ describe('maps', () => {
   });
 
   it('supports membership queries', async () => {
-    await assertSucceeds(getDocs(query(collection(db('nav'), 'maps'), where('memberUids', 'array-contains', 'nav'))));
-    await assertSucceeds(getDocs(query(collection(db('student'), 'maps'), where('orgMemberUids', 'array-contains', 'student'))));
+    await assertSucceeds(
+      getDocs(query(collection(db('nav'), 'maps'), where('memberUids', 'array-contains', 'nav'))),
+    );
+    await assertSucceeds(
+      getDocs(query(collection(db('student'), 'maps'), where('orgMemberUids', 'array-contains', 'student'))),
+    );
     await assertFails(getDocs(collection(db('nav'), 'maps')));
   });
 
@@ -86,10 +118,20 @@ describe('maps', () => {
   });
 
   it('owners manage members but cannot remove themselves as owner', async () => {
-    await assertSucceeds(updateDoc(doc(db('owner'), 'maps/m1'), { 'members.new': 'navigator', memberUids: ['owner', 'ed', 'nav', 'new'] }));
+    await assertSucceeds(
+      updateDoc(doc(db('owner'), 'maps/m1'), {
+        'members.new': 'navigator',
+        memberUids: ['owner', 'ed', 'nav', 'new'],
+      }),
+    );
     await assertFails(updateDoc(doc(db('owner'), 'maps/m1'), { 'members.x': 'navigator' })); // memberUids out of sync
     await assertFails(updateDoc(doc(db('owner'), 'maps/m1'), { 'members.owner': 'editor' }));
-    await assertFails(updateDoc(doc(db('owner'), 'maps/m1'), { 'members.y': 'admin', memberUids: ['owner', 'ed', 'nav', 'y'] }));
+    await assertFails(
+      updateDoc(doc(db('owner'), 'maps/m1'), {
+        'members.y': 'admin',
+        memberUids: ['owner', 'ed', 'nav', 'y'],
+      }),
+    );
   });
 
   it('org editors get editor rights on org maps', async () => {
@@ -138,8 +180,20 @@ describe('versions and drafts', () => {
   it('navigators read versions but not drafts', async () => {
     await assertSucceeds(getDoc(doc(db('nav'), 'maps/m1/versions/000001')));
     await assertFails(getDoc(doc(db('nav'), 'maps/m1/draft/current')));
-    await assertSucceeds(setDoc(doc(db('ed'), 'maps/m1/draft/current'), { graphJson: '{}', updatedBy: 'ed', updatedAt: serverTimestamp() }));
-    await assertFails(setDoc(doc(db('ed'), 'maps/m1/draft/other'), { graphJson: '{}', updatedBy: 'ed', updatedAt: serverTimestamp() }));
+    await assertSucceeds(
+      setDoc(doc(db('ed'), 'maps/m1/draft/current'), {
+        graphJson: '{}',
+        updatedBy: 'ed',
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertFails(
+      setDoc(doc(db('ed'), 'maps/m1/draft/other'), {
+        graphJson: '{}',
+        updatedBy: 'ed',
+        updatedAt: serverTimestamp(),
+      }),
+    );
   });
 });
 

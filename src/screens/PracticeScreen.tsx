@@ -28,11 +28,18 @@ export default function PracticeScreen() {
     <Screen title="Practice" back="/">
       <Card className="flex flex-col gap-3">
         <h2 className="text-xl font-bold">Vibrations</h2>
-        <p className="text-muted">Each cue always comes with a sound and, during navigation, a spoken instruction.</p>
+        <p className="text-muted">
+          Each cue always comes with a sound and, during navigation, a spoken instruction.
+        </p>
         <ul className="flex flex-col gap-2">
           {CUES.map((c) => (
             <li key={c.cue}>
-              <Button block className="justify-between text-left" onClick={() => void cue(c.cue, c.label)} aria-describedby={`cue-${c.cue}`}>
+              <Button
+                block
+                className="justify-between text-left"
+                onClick={() => void cue(c.cue, c.label)}
+                aria-describedby={`cue-${c.cue}`}
+              >
                 <span>{c.label}</span>
                 <span id={`cue-${c.cue}`} className="text-sm text-muted font-normal">
                   {c.meaning}
@@ -45,10 +52,14 @@ export default function PracticeScreen() {
       <Card className="flex flex-col gap-3">
         <h2 className="text-xl font-bold">Gestures</h2>
         <p className="text-muted">
-          Try gestures anywhere in the box below. If VoiceOver is on, first double-tap and hold the box, or use the Navigate screen in the iOS app,
-          which takes gestures directly.
+          Try gestures anywhere in the box below. If VoiceOver is on, first double-tap and hold the box, or
+          use the Navigate screen in the iOS app, which takes gestures directly.
         </p>
-        <GestureSurface onGesture={onGesture} label="Gesture practice area" className="h-72 rounded-2xl border-2 border-dashed border-line flex items-center justify-center text-center p-4">
+        <GestureSurface
+          onGesture={onGesture}
+          label="Gesture practice area"
+          className="h-72 rounded-2xl border-2 border-dashed border-line flex items-center justify-center text-center p-4"
+        >
           <p aria-hidden className="text-2xl font-bold">
             {last ? GESTURE_HELP.find((x) => x.gesture === last)!.label : 'Swipe, tap or hold here'}
           </p>

@@ -29,7 +29,10 @@ export function HomeScreen() {
     <Screen
       title="Your maps"
       actions={
-        <Link to="/settings" className="min-h-12 min-w-12 flex items-center justify-center rounded-xl font-semibold text-accent">
+        <Link
+          to="/settings"
+          className="min-h-12 min-w-12 flex items-center justify-center rounded-xl font-semibold text-accent"
+        >
           Settings
         </Link>
       }
@@ -48,7 +51,13 @@ export function HomeScreen() {
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <LinkButton to={`/maps/${m.id}/navigate`} variant="primary" aria-label={`Navigate in ${m.name}`} aria-disabled={!m.latestVersion} onClick={(e) => !m.latestVersion && e.preventDefault()}>
+              <LinkButton
+                to={`/maps/${m.id}/navigate`}
+                variant="primary"
+                aria-label={`Navigate in ${m.name}`}
+                aria-disabled={!m.latestVersion}
+                onClick={(e) => !m.latestVersion && e.preventDefault()}
+              >
                 Navigate
               </LinkButton>
               <LinkButton to={`/maps/${m.id}`} aria-label={`Open ${m.name}`}>
@@ -58,7 +67,11 @@ export function HomeScreen() {
           </Card>
         ))}
       </ul>
-      {maps.data?.length === 0 && <p className="text-muted">No maps yet. Create one, or join with a code from someone who shared a map.</p>}
+      {maps.data?.length === 0 && (
+        <p className="text-muted">
+          No maps yet. Create one, or join with a code from someone who shared a map.
+        </p>
+      )}
 
       {showNew ? (
         <Card>
@@ -71,15 +84,23 @@ export function HomeScreen() {
             }}
           >
             <h2 className="text-xl font-bold">New map</h2>
-            <Field label="Building or home name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Maple Hall" />
+            <Field
+              label="Building or home name"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Maple Hall"
+            />
             {(orgs.data?.length ?? 0) > 0 && (
               <Select label="Owner" value={orgId} onChange={(e) => setOrgId(e.target.value)}>
                 <option value="">Just me</option>
-                {orgs.data!.filter((o) => o.role !== 'navigator').map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name}
-                  </option>
-                ))}
+                {orgs
+                  .data!.filter((o) => o.role !== 'navigator')
+                  .map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
               </Select>
             )}
             <div className="grid grid-cols-2 gap-2">
@@ -115,7 +136,13 @@ export function HomeScreen() {
             }}
           >
             <h2 className="text-xl font-bold">Join a shared map</h2>
-            <Field label="Invite code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} autoCapitalize="characters" autoComplete="off" />
+            <Field
+              label="Invite code"
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              autoCapitalize="characters"
+              autoComplete="off"
+            />
             <Button type="submit" disabled={code.trim().length < 6}>
               Join
             </Button>

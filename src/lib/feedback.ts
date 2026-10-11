@@ -32,7 +32,9 @@ export const voice = new VoiceGuide({
   rate: 1,
 });
 
-useSettings.subscribe((s) => voice.update({ enabled: s.voiceEnabled, premium: s.premiumVoice, rate: s.speechRate }));
+useSettings.subscribe((s) =>
+  voice.update({ enabled: s.voiceEnabled, premium: s.premiumVoice, rate: s.speechRate }),
+);
 
 /** Live region announcer so VoiceOver users also get prompts as text. */
 let liveRegion: ((text: string) => void) | null = null;
@@ -48,7 +50,8 @@ export function registerLiveRegion(fn: ((text: string) => void) | null) {
 export function cue(name: Cue, speech?: string, priority: Priority = 'normal'): Promise<void> {
   const s = settings();
   const h = HAPTIC_FOR[name];
-  if (s.hapticsEnabled && h) void Haptics.play({ pattern: HAPTIC_PATTERNS[h], intensity: s.hapticIntensity }).catch(() => undefined);
+  if (s.hapticsEnabled && h)
+    void Haptics.play({ pattern: HAPTIC_PATTERNS[h], intensity: s.hapticIntensity }).catch(() => undefined);
   if (s.earconsEnabled) playEarcon(name as Earcon, s.earconVolume);
   if (speech) {
     liveRegion?.(speech);
@@ -64,5 +67,8 @@ export function say(text: string, priority: Priority = 'normal'): Promise<void> 
 
 export function hapticOnly(name: HapticCue) {
   const s = settings();
-  if (s.hapticsEnabled) void Haptics.play({ pattern: HAPTIC_PATTERNS[name], intensity: s.hapticIntensity }).catch(() => undefined);
+  if (s.hapticsEnabled)
+    void Haptics.play({ pattern: HAPTIC_PATTERNS[name], intensity: s.hapticIntensity }).catch(
+      () => undefined,
+    );
 }

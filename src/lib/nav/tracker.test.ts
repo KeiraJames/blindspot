@@ -21,14 +21,18 @@ function walk(tracker: RouteTracker, opts: { offset?: Vec2; stopAt?: number } = 
   let t = 0;
   for (const seg of tracker.segments) {
     if (seg.vertical) {
-      for (let k = 0; k < 5; k++) events.push(...tracker.update(pose(seg.a, 0, seg.floorId === 'f1' ? 'g' : 'f1', (t += 200))));
+      for (let k = 0; k < 5; k++)
+        events.push(...tracker.update(pose(seg.a, 0, seg.floorId === 'f1' ? 'g' : 'f1', (t += 200))));
       events.push(...tracker.update(pose(seg.b, 0, seg.floorId, (t += 200))));
       continue;
     }
     const h = bearing(seg.a, seg.b);
     const n = Math.max(1, Math.ceil(seg.length / 0.24));
     for (let k = 1; k <= n; k++) {
-      const p = { x: seg.a.x + ((seg.b.x - seg.a.x) * k) / n + (opts.offset?.x ?? 0), y: seg.a.y + ((seg.b.y - seg.a.y) * k) / n + (opts.offset?.y ?? 0) };
+      const p = {
+        x: seg.a.x + ((seg.b.x - seg.a.x) * k) / n + (opts.offset?.x ?? 0),
+        y: seg.a.y + ((seg.b.y - seg.a.y) * k) / n + (opts.offset?.y ?? 0),
+      };
       events.push(...tracker.update(pose(p, h, seg.floorId, (t += 200))));
       if (opts.stopAt !== undefined && tracker.distanceTravelled >= opts.stopAt) return events;
     }
@@ -64,7 +68,7 @@ describe('RouteTracker', () => {
     const events = walk(tracker);
     const kinds = events.map((e) => e.type);
     expect(kinds).toContain('floor_reached');
-    expect(kinds.at(-1)).toBe("arrived");
+    expect(kinds.at(-1)).toBe('arrived');
     const fcIdx = events.findIndex((e) => e.type === 'maneuver' && e.step.kind === 'floor_change');
     expect(fcIdx).toBeGreaterThanOrEqual(0);
   });
@@ -73,7 +77,8 @@ describe('RouteTracker', () => {
     const { tracker } = setup('g-entrance', 'g-kit');
     walk(tracker, { stopAt: 6 });
     const out: TrackerEvent[] = [];
-    for (let t = 0; t <= 3000; t += 250) out.push(...tracker.update(pose({ x: 6, y: 6 }, 0, 'g', 100000 + t)));
+    for (let t = 0; t <= 3000; t += 250)
+      out.push(...tracker.update(pose({ x: 6, y: 6 }, 0, 'g', 100000 + t)));
     expect(out.filter((e) => e.type === 'off_route')).toHaveLength(1);
   });
 
@@ -100,7 +105,9 @@ describe('RouteTracker', () => {
     const lost = { ...pose({ x: 0, y: 0 }, 0, 'g', 0), tracking: 'lost' as const };
     expect(tracker.update(lost)).toEqual([{ type: 'tracking_lost' }]);
     expect(tracker.update({ ...lost, timestamp: 100 })).toEqual([]);
-    expect(tracker.update(pose({ x: 0, y: 0.2 }, Math.PI / 2, 'g', 200))[0]).toEqual({ type: 'tracking_restored' });
+    expect(tracker.update(pose({ x: 0, y: 0.2 }, Math.PI / 2, 'g', 200))[0]).toEqual({
+      type: 'tracking_restored',
+    });
   });
 });
 
@@ -108,10 +115,15 @@ describe('prompt redundancy', () => {
   it('does not announce an approach already covered by the previous "then walk" prompt', () => {
     const { tracker } = setup('g-entrance', 'f1-202');
     const events = walk(tracker);
-    const approaches = events.filter((e): e is Extract<TrackerEvent, { type: 'approach' }> => e.type === 'approach');
+    const approaches = events.filter(
+      (e): e is Extract<TrackerEvent, { type: 'approach' }> => e.type === 'approach',
+    );
     for (const a of approaches) {
       const k = tracker.steps.indexOf(a.step);
-      const prev = tracker.steps.slice(0, k).reverse().find((s) => s.kind !== 'arrive')!;
+      const prev = tracker.steps
+        .slice(0, k)
+        .reverse()
+        .find((s) => s.kind !== 'arrive')!;
       expect(prev.distanceAfter).toBeGreaterThan(8);
     }
     expect(approaches.some((a) => a.step.kind === 'arrive')).toBe(false);

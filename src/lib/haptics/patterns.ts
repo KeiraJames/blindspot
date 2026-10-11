@@ -34,7 +34,12 @@ export type HapticCue =
   | 'cancel'
   | 'floorChange';
 
-const t = (time: number, intensity: number, sharpness: number): HapticEvent => ({ type: 'transient', time, intensity, sharpness });
+const t = (time: number, intensity: number, sharpness: number): HapticEvent => ({
+  type: 'transient',
+  time,
+  intensity,
+  sharpness,
+});
 const c = (time: number, duration: number, intensity: number, sharpness: number): HapticEvent => ({
   type: 'continuous',
   time,
@@ -74,7 +79,9 @@ export function patternDuration(p: HapticPattern): number {
 
 /** Rhythm signature used to check that cues are distinguishable without looking at intensity. */
 export function rhythmSignature(p: HapticPattern): string {
-  return p.events.map((e) => `${e.type[0]}@${e.time.toFixed(2)}${e.duration ? `+${e.duration.toFixed(2)}` : ''}`).join(',');
+  return p.events
+    .map((e) => `${e.type[0]}@${e.time.toFixed(2)}${e.duration ? `+${e.duration.toFixed(2)}` : ''}`)
+    .join(',');
 }
 
 /** Approximate the pattern for navigator.vibrate() (web dev only; iOS ignores it). */

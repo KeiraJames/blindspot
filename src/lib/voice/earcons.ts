@@ -15,7 +15,15 @@ export type Earcon =
   | 'floorChange'
   | 'offRoute';
 
-type Tone = { f: number; t: number; d: number; type?: OscillatorType; gain?: number; pan?: number; f2?: number };
+type Tone = {
+  f: number;
+  t: number;
+  d: number;
+  type?: OscillatorType;
+  gain?: number;
+  pan?: number;
+  f2?: number;
+};
 
 const SPECS: Record<Earcon, Tone[]> = {
   turnLeft: [
@@ -56,7 +64,9 @@ let ctx: AudioContext | null = null;
 
 function audio(): AudioContext | null {
   if (typeof window === 'undefined') return null;
-  const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  const Ctor =
+    window.AudioContext ??
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Ctor) return null;
   ctx ??= new Ctor();
   if (ctx.state === 'suspended') void ctx.resume();

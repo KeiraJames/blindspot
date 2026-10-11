@@ -1,4 +1,11 @@
-import { DEFAULT_PREFERENCES, findRoute, nearestNode, nearestOfType, type Route, type RoutePreferences } from '../graph/astar';
+import {
+  DEFAULT_PREFERENCES,
+  findRoute,
+  nearestNode,
+  nearestOfType,
+  type Route,
+  type RoutePreferences,
+} from '../graph/astar';
 import { bearing } from '../graph/geometry';
 import { destinations, GraphIndex, nodeDisplayName } from '../graph/graph';
 import type { GraphNode, MapGraph } from '../graph/types';
@@ -153,7 +160,13 @@ export class NavigationController {
   }
 
   setDestination(nodeId: string) {
-    this.set({ destinationId: nodeId, browseIndex: Math.max(0, this.destinations.findIndex((d) => d.id === nodeId)) });
+    this.set({
+      destinationId: nodeId,
+      browseIndex: Math.max(
+        0,
+        this.destinations.findIndex((d) => d.id === nodeId),
+      ),
+    });
     if (!this.state.startId) {
       this.set({ phase: 'choose_start' });
       this.speak(`Destination ${this.label(nodeId)}. Now choose where you are starting from.`);
@@ -164,7 +177,11 @@ export class NavigationController {
 
   /** Destination search by spoken or typed text. */
   findDestination(text: string): GraphNode[] {
-    const q = text.trim().toLowerCase().replace(/^(take me to|go to|navigate to|find)\s+/, '').replace(/^the\s+/, '');
+    const q = text
+      .trim()
+      .toLowerCase()
+      .replace(/^(take me to|go to|navigate to|find)\s+/, '')
+      .replace(/^the\s+/, '');
     if (!q) return [];
     const words = q.split(/\s+/);
     const scored = this.destinations
@@ -190,12 +207,23 @@ export class NavigationController {
     if (!route) {
       const why = this.opts.prefs.avoidStairs ? ' without stairs' : '';
       this.set({ route: null, steps: [], error: `No route found to ${this.label(dest)}${why}.` });
-      this.cue('cancel', `No route found to ${this.label(dest)}${why}. Check the map in Map Studio.`, 'normal');
+      this.cue(
+        'cancel',
+        `No route found to ${this.label(dest)}${why}. Check the map in Map Studio.`,
+        'normal',
+      );
       return false;
     }
     const steps = buildSteps(this.index, route);
     this.tracker = new RouteTracker(this.index, route, steps);
-    this.set({ route, steps, previewIndex: 0, error: null, remaining: route.length, phase: this.state.phase === 'guiding' ? 'guiding' : 'preview' });
+    this.set({
+      route,
+      steps,
+      previewIndex: 0,
+      error: null,
+      remaining: route.length,
+      phase: this.state.phase === 'guiding' ? 'guiding' : 'preview',
+    });
     if (announce && this.state.phase === 'preview') {
       const summary = routeSummary(steps, route, this.opts.phrase, this.label(dest));
       this.speak(`${summary} ${stepText(steps[0]!, this.opts.phrase)} Double-tap to start.`);
@@ -205,7 +233,9 @@ export class NavigationController {
   }
 
   routeToNearest(kind: 'exit' | 'bathroom' | 'elevator') {
-    const from = this.state.pose ? nearestNode(this.index, this.state.pose.floorId, this.state.pose.position) : this.state.startId;
+    const from = this.state.pose
+      ? nearestNode(this.index, this.state.pose.floorId, this.state.pose.position)
+      : this.state.startId;
     if (!from) {
       this.speak('Choose where you are first.');
       return;
@@ -252,7 +282,13 @@ export class NavigationController {
   end(announce = true) {
     this.tracker = null;
     this.out.stopSpeech();
-    this.set({ phase: this.state.startId ? 'choose_destination' : 'choose_start', route: null, steps: [], destinationId: null, pendingConfirm: null });
+    this.set({
+      phase: this.state.startId ? 'choose_destination' : 'choose_start',
+      route: null,
+      steps: [],
+      destinationId: null,
+      pendingConfirm: null,
+    });
     if (announce) this.cue('cancel', 'Navigation ended.');
   }
 
@@ -263,7 +299,8 @@ export class NavigationController {
     const next = t.nextStep();
     if (!next) return '';
     const away = Math.max(0, t.stepDistance(next) - t.distanceTravelled);
-    if (next.kind === 'arrive') return `${this.label(this.state.destinationId)} in ${formatDistance(away, this.opts.phrase.unit, this.opts.phrase.stepLength)}.`;
+    if (next.kind === 'arrive')
+      return `${this.label(this.state.destinationId)} in ${formatDistance(away, this.opts.phrase.unit, this.opts.phrase.stepLength)}.`;
     return approachText(next, Math.max(1, away), this.opts.phrase);
   }
 
@@ -273,13 +310,17 @@ export class NavigationController {
     if (pose) {
       const floor = this.index.floors.get(pose.floorId);
       const near = nearestNode(this.index, pose.floorId, pose.position);
-      parts.push(`You are${floor && this.graph.floors.length > 1 ? ` on ${floor.name},` : ''} near ${near ? this.index.node(near).label : 'an unknown place'}.`);
+      parts.push(
+        `You are${floor && this.graph.floors.length > 1 ? ` on ${floor.name},` : ''} near ${near ? this.index.node(near).label : 'an unknown place'}.`,
+      );
     } else if (this.state.startId) {
       parts.push(`You are at ${this.label(this.state.startId)}.`);
     }
     if (this.tracker && (this.state.phase === 'guiding' || this.state.phase === 'paused')) {
       parts.push(this.nextInstruction());
-      parts.push(`${formatDistance(this.tracker.remaining, this.opts.phrase.unit, this.opts.phrase.stepLength)} to ${this.label(this.state.destinationId)}.`);
+      parts.push(
+        `${formatDistance(this.tracker.remaining, this.opts.phrase.unit, this.opts.phrase.stepLength)} to ${this.label(this.state.destinationId)}.`,
+      );
     }
     return parts.join(' ');
   }
@@ -290,7 +331,12 @@ export class NavigationController {
     const events = this.tracker.update(pose);
     for (const e of events) this.handle(e, pose);
     this.set({ remaining: this.tracker?.remaining ?? 0 });
-    if (this.opts.courseTicks && this.onCourse && this.state.phase === 'guiding' && pose.timestamp - this.lastTickAt >= TICK_INTERVAL_MS) {
+    if (
+      this.opts.courseTicks &&
+      this.onCourse &&
+      this.state.phase === 'guiding' &&
+      pose.timestamp - this.lastTickAt >= TICK_INTERVAL_MS
+    ) {
       this.lastTickAt = pose.timestamp;
       this.out.cue('straight');
     }
@@ -304,7 +350,11 @@ export class NavigationController {
         break;
       case 'maneuver': {
         const text = nowText(e.step, p);
-        if (e.step.kind === 'floor_change') this.cue('floorChange', `${text} Two-finger swipe ${e.step.floorChange!.direction} when you reach ${e.step.floorChange!.toFloorName}.`);
+        if (e.step.kind === 'floor_change')
+          this.cue(
+            'floorChange',
+            `${text} Two-finger swipe ${e.step.floorChange!.direction} when you reach ${e.step.floorChange!.toFloorName}.`,
+          );
         else if (e.step.turn && isLeft(e.step.turn)) this.cue('turnLeft', text);
         else if (e.step.turn && isRight(e.step.turn)) this.cue('turnRight', text);
         else this.cue('confirm', text);
@@ -314,7 +364,13 @@ export class NavigationController {
       }
       case 'veer':
         this.onCourse = false;
-        this.cue(isLeft(e.direction) ? 'turnLeft' : 'turnRight', this.opts.verbosity === 'brief' ? undefined : `${turnPhrase(e.direction === 'u_turn' ? 'u_turn' : isLeft(e.direction) ? 'slight_left' : 'slight_right')}.`, 'low');
+        this.cue(
+          isLeft(e.direction) ? 'turnLeft' : 'turnRight',
+          this.opts.verbosity === 'brief'
+            ? undefined
+            : `${turnPhrase(e.direction === 'u_turn' ? 'u_turn' : isLeft(e.direction) ? 'slight_left' : 'slight_right')}.`,
+          'low',
+        );
         break;
       case 'on_course':
         this.onCourse = true;
@@ -325,13 +381,19 @@ export class NavigationController {
         break;
       case 'floor_reached': {
         // Speak the walk that follows the stairs/elevator; it has no maneuver of its own.
-        const cont = this.state.steps.find((s) => s.kind === 'continue' && this.index.node(s.nodeId).floorId === e.floorId);
+        const cont = this.state.steps.find(
+          (s) => s.kind === 'continue' && this.index.node(s.nodeId).floorId === e.floorId,
+        );
         const next = cont ? ` ${stepText(cont, p)}` : '';
         this.cue('confirm', `Now on ${this.index.floors.get(e.floorId)?.name ?? 'a new floor'}.${next}`);
         break;
       }
       case 'tracking_lost':
-        this.cue('trackingLost', 'Tracking lost. Stand still and slowly move the phone side to side.', 'high');
+        this.cue(
+          'trackingLost',
+          'Tracking lost. Stand still and slowly move the phone side to side.',
+          'high',
+        );
         break;
       case 'tracking_restored':
         this.cue('confirm', 'Tracking restored.');
@@ -360,8 +422,12 @@ export class NavigationController {
     const node = this.index.node(this.state.route!.nodeIds[0]!);
     let lead = '';
     if (this.state.pose) {
-      const d = Math.hypot(node.position.x - this.state.pose.position.x, node.position.y - this.state.pose.position.y);
-      if (d > 1.5) lead = `Head to ${node.label}, ${formatDistance(d, this.opts.phrase.unit, this.opts.phrase.stepLength)} away. `;
+      const d = Math.hypot(
+        node.position.x - this.state.pose.position.x,
+        node.position.y - this.state.pose.position.y,
+      );
+      if (d > 1.5)
+        lead = `Head to ${node.label}, ${formatDistance(d, this.opts.phrase.unit, this.opts.phrase.stepLength)} away. `;
     }
     this.speak(`${prefix ? `${prefix} ` : ''}New route. ${lead}${stepText(first, this.opts.phrase)}`);
   }
@@ -386,9 +452,15 @@ export class NavigationController {
     const now = Date.now();
     if (now - (this.hazardAt.get(key) ?? 0) < HAZARD_COOLDOWN_MS) return;
     this.hazardAt.set(key, now);
-    const side = h.relativeBearing > 0.35 ? ' on your left' : h.relativeBearing < -0.35 ? ' on your right' : ' ahead';
-    const dist = h.distance !== undefined ? `, ${formatDistance(h.distance, this.opts.phrase.unit, this.opts.phrase.stepLength)}` : '';
-    const what = { obstacle: 'Obstacle', person: 'Person', stairs: 'Stairs', door: 'Door', drop: 'Drop-off' }[h.kind];
+    const side =
+      h.relativeBearing > 0.35 ? ' on your left' : h.relativeBearing < -0.35 ? ' on your right' : ' ahead';
+    const dist =
+      h.distance !== undefined
+        ? `, ${formatDistance(h.distance, this.opts.phrase.unit, this.opts.phrase.stepLength)}`
+        : '';
+    const what = { obstacle: 'Obstacle', person: 'Person', stairs: 'Stairs', door: 'Door', drop: 'Drop-off' }[
+      h.kind
+    ];
     // Never claim a path is clear; only report what was detected.
     this.cue('hazard', `Caution. ${what}${side}${dist}.`, 'high');
   }
@@ -430,7 +502,9 @@ export class NavigationController {
         } else if (s.steps.length > 0) {
           const i = Math.min(s.steps.length - 1, Math.max(0, s.previewIndex + dir));
           this.set({ previewIndex: i });
-          this.speak(`Step ${i + 1} of ${s.steps.length}. ${stepText(s.steps[i]!, this.opts.phrase, this.label(s.destinationId))}`);
+          this.speak(
+            `Step ${i + 1} of ${s.steps.length}. ${stepText(s.steps[i]!, this.opts.phrase, this.label(s.destinationId))}`,
+          );
         }
         break;
       }
@@ -476,6 +550,12 @@ export class NavigationController {
   }
 
   static defaultOptions(): NavOptions {
-    return { phrase: { unit: 'meters' }, prefs: DEFAULT_PREFERENCES, hazardAlerts: true, courseTicks: true, verbosity: 'detailed' };
+    return {
+      phrase: { unit: 'meters' },
+      prefs: DEFAULT_PREFERENCES,
+      hazardAlerts: true,
+      courseTicks: true,
+      verbosity: 'detailed',
+    };
   }
 }

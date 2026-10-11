@@ -21,7 +21,10 @@ export interface SpeechPlugin {
   configureAudioSession(): Promise<void>;
   /** Whether VoiceOver is running, so the UI can adapt. */
   isVoiceOverRunning(): Promise<{ running: boolean }>;
-  addListener(event: 'voiceOverChanged', cb: (e: { running: boolean }) => void): Promise<PluginListenerHandle>;
+  addListener(
+    event: 'voiceOverChanged',
+    cb: (e: { running: boolean }) => void,
+  ): Promise<PluginListenerHandle>;
 }
 
 type SpeechRecognitionCtor = new () => {
@@ -54,7 +57,10 @@ class SpeechWeb extends WebPlugin implements SpeechPlugin {
     if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
   }
   async listen({ timeoutMs = 8000 }: { timeoutMs?: number } = {}) {
-    const w = window as unknown as { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor };
+    const w = window as unknown as {
+      SpeechRecognition?: SpeechRecognitionCtor;
+      webkitSpeechRecognition?: SpeechRecognitionCtor;
+    };
     const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
     if (!Ctor) throw this.unavailable('Speech recognition is not available in this browser.');
     return new Promise<{ transcript: string }>((resolve, reject) => {

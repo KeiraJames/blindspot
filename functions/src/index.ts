@@ -71,7 +71,8 @@ export const createInvite = onCall(async (req) => {
   const uid = requireAuth(req.auth?.uid);
   const { mapId, orgId, role } = (req.data ?? {}) as { mapId?: string; orgId?: string; role?: unknown };
   if (!isRole(role)) throw new HttpsError('invalid-argument', 'Unknown role.');
-  if (Boolean(mapId) === Boolean(orgId)) throw new HttpsError('invalid-argument', 'Give exactly one of mapId or orgId.');
+  if (Boolean(mapId) === Boolean(orgId))
+    throw new HttpsError('invalid-argument', 'Give exactly one of mapId or orgId.');
 
   let callerRole: Role | null = null;
   if (mapId) {
@@ -83,7 +84,8 @@ export const createInvite = onCall(async (req) => {
     if (!org) throw new HttpsError('not-found', 'Organization not found.');
     callerRole = org.members[uid] ?? null;
   }
-  if (!canInvite(callerRole, role)) throw new HttpsError('permission-denied', 'You cannot invite people with that role.');
+  if (!canInvite(callerRole, role))
+    throw new HttpsError('permission-denied', 'You cannot invite people with that role.');
 
   const expiresAt = Date.now() + INVITE_TTL_MS;
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -108,7 +110,9 @@ export const createInvite = onCall(async (req) => {
 
 export const acceptInvite = onCall(async (req) => {
   const uid = requireAuth(req.auth?.uid);
-  const code = String((req.data as { code?: unknown } | undefined)?.code ?? '').trim().toUpperCase();
+  const code = String((req.data as { code?: unknown } | undefined)?.code ?? '')
+    .trim()
+    .toUpperCase();
   if (!/^[A-Z0-9]{6,12}$/.test(code)) throw new HttpsError('invalid-argument', 'That code is not valid.');
 
   return db.runTransaction(async (tx) => {
@@ -117,7 +121,10 @@ export const acceptInvite = onCall(async (req) => {
       | { mapId?: string; orgId?: string; role: Role; expiresAt: Timestamp; uses: number; maxUses: number }
       | undefined;
     if (!invite) throw new HttpsError('not-found', 'That code is not valid.');
-    const problem = inviteUsable({ expiresAt: invite.expiresAt.toMillis(), uses: invite.uses, maxUses: invite.maxUses }, Date.now());
+    const problem = inviteUsable(
+      { expiresAt: invite.expiresAt.toMillis(), uses: invite.uses, maxUses: invite.maxUses },
+      Date.now(),
+    );
     if (problem) throw new HttpsError('failed-precondition', problem);
 
     const targetRef = invite.mapId ? db.doc(`maps/${invite.mapId}`) : db.doc(`orgs/${invite.orgId}`);
@@ -150,9 +157,14 @@ export const validateVersion = onDocumentCreated('maps/{mapId}/versions/{version
   let graph: MapGraph;
   try {
     graph = JSON.parse(data.graphJson) as MapGraph;
-    if (graph.schemaVersion !== 1 || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) throw new Error('bad schema');
+    if (graph.schemaVersion !== 1 || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges))
+      throw new Error('bad schema');
   } catch {
-    await snap.ref.update({ status: 'invalid', issues: [{ severity: 'error', code: 'empty', message: 'The map data could not be read.' }], validatedAt: FieldValue.serverTimestamp() });
+    await snap.ref.update({
+      status: 'invalid',
+      issues: [{ severity: 'error', code: 'empty', message: 'The map data could not be read.' }],
+      validatedAt: FieldValue.serverTimestamp(),
+    });
     return;
   }
 
@@ -160,11 +172,20 @@ export const validateVersion = onDocumentCreated('maps/{mapId}/versions/{version
   await snap.ref.update({
     status: result.ok ? 'valid' : 'invalid',
     issues: result.issues.slice(0, 50).map(({ severity, code, message }) => ({ severity, code, message })),
-    stats: { nodes: graph.nodes.length, edges: graph.edges.length, floors: graph.floors.length, components: result.components.length },
+    stats: {
+      nodes: graph.nodes.length,
+      edges: graph.edges.length,
+      floors: graph.floors.length,
+      components: result.components.length,
+    },
     validatedAt: FieldValue.serverTimestamp(),
   });
   if (!result.ok) {
-    logger.info('Rejected map version', { mapId, number: data.number, errors: result.issues.filter((i) => i.severity === 'error').length });
+    logger.info('Rejected map version', {
+      mapId,
+      number: data.number,
+      errors: result.issues.filter((i) => i.severity === 'error').length,
+    });
     return;
   }
   await db.runTransaction(async (tx) => {
@@ -188,9 +209,13 @@ export const syncOrgMembers = onDocumentWritten('orgs/{orgId}', async (event) =>
   for (const m of maps.docs) {
     const current = (m.data() as MapDoc).orgMemberUids ?? [];
     if (!after) writer.update(m.ref, { orgId: null, orgMemberUids: [] });
-    else if (current.length !== uids.length || current.some((u) => !uids.includes(u))) writer.update(m.ref, { orgMemberUids: uids });
+    else if (current.length !== uids.length || current.some((u) => !uids.includes(u)))
+      writer.update(m.ref, { orgMemberUids: uids });
   }
-  if (after && (after.memberUids?.length !== uids.length || after.memberUids.some((u) => !uids.includes(u)))) {
+  if (
+    after &&
+    (after.memberUids?.length !== uids.length || after.memberUids.some((u) => !uids.includes(u)))
+  ) {
     writer.update(event.data!.after.ref, { memberUids: uids });
   }
   await writer.close();
@@ -213,7 +238,10 @@ export const syncMapOrg = onDocumentWritten('maps/{mapId}', async (event) => {
 export const cleanupMap = onDocumentDeleted('maps/{mapId}', async (event) => {
   const { mapId } = event.params;
   await db.recursiveDelete(db.doc(`maps/${mapId}`));
-  await getStorage().bucket().deleteFiles({ prefix: `maps/${mapId}/` }).catch((e) => logger.warn('Storage cleanup failed', { mapId, e: String(e) }));
+  await getStorage()
+    .bucket()
+    .deleteFiles({ prefix: `maps/${mapId}/` })
+    .catch((e) => logger.warn('Storage cleanup failed', { mapId, e: String(e) }));
 });
 
 // ---- Voice --------------------------------------------------------------------------------
@@ -222,40 +250,57 @@ export const cleanupMap = onDocumentDeleted('maps/{mapId}', async (event) => {
  * ElevenLabs proxy. Holds the API key, restricts voices to an allowlist (one consistent guide
  * voice) and enforces a per-user daily character quota. Returns MP3 as base64.
  */
-export const tts = onCall({ secrets: [ELEVENLABS_API_KEY], timeoutSeconds: 20, memory: '256MiB', concurrency: 40 }, async (req) => {
-  const uid = requireAuth(req.auth?.uid);
-  const { text: rawText, voiceId } = (req.data ?? {}) as { text?: unknown; voiceId?: unknown };
-  let text: string;
-  try {
-    text = validateTtsText(rawText);
-  } catch (e) {
-    throw new HttpsError('invalid-argument', (e as Error).message);
-  }
-  const allowed = ELEVENLABS_VOICE_IDS.value().split(',').map((v) => v.trim()).filter(Boolean);
-  const voice = typeof voiceId === 'string' && allowed.includes(voiceId) ? voiceId : allowed[0];
-  if (!voice) throw new HttpsError('failed-precondition', 'No voice is configured.');
+export const tts = onCall(
+  { secrets: [ELEVENLABS_API_KEY], timeoutSeconds: 20, memory: '256MiB', concurrency: 40 },
+  async (req) => {
+    const uid = requireAuth(req.auth?.uid);
+    const { text: rawText, voiceId } = (req.data ?? {}) as { text?: unknown; voiceId?: unknown };
+    let text: string;
+    try {
+      text = validateTtsText(rawText);
+    } catch (e) {
+      throw new HttpsError('invalid-argument', (e as Error).message);
+    }
+    const allowed = ELEVENLABS_VOICE_IDS.value()
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean);
+    const voice = typeof voiceId === 'string' && allowed.includes(voiceId) ? voiceId : allowed[0];
+    if (!voice) throw new HttpsError('failed-precondition', 'No voice is configured.');
 
-  const usageRef = db.doc(`usage/${uid}`);
-  await db.runTransaction(async (tx) => {
-    const usage = (await tx.get(usageRef)).data() as { day?: string; chars?: number } | undefined;
-    const next = spendQuota(usage, text.length, TTS_DAILY_CHAR_LIMIT.value(), dayKey(new Date()));
-    if (!next) throw new HttpsError('resource-exhausted', 'Daily voice limit reached. The built-in voice will be used.');
-    tx.set(usageRef, next, { merge: true });
-  });
+    const usageRef = db.doc(`usage/${uid}`);
+    await db.runTransaction(async (tx) => {
+      const usage = (await tx.get(usageRef)).data() as { day?: string; chars?: number } | undefined;
+      const next = spendQuota(usage, text.length, TTS_DAILY_CHAR_LIMIT.value(), dayKey(new Date()));
+      if (!next)
+        throw new HttpsError(
+          'resource-exhausted',
+          'Daily voice limit reached. The built-in voice will be used.',
+        );
+      tx.set(usageRef, next, { merge: true });
+    });
 
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_64`, {
-    method: 'POST',
-    headers: { 'xi-api-key': ELEVENLABS_API_KEY.value(), 'content-type': 'application/json', accept: 'audio/mpeg' },
-    body: JSON.stringify({
-      text,
-      model_id: ELEVENLABS_MODEL.value(),
-      voice_settings: { stability: 0.6, similarity_boost: 0.75, style: 0, use_speaker_boost: true },
-    }),
-  });
-  if (!res.ok) {
-    logger.warn('ElevenLabs error', { status: res.status, body: (await res.text()).slice(0, 300) });
-    throw new HttpsError('unavailable', 'Voice service unavailable.');
-  }
-  const audio = Buffer.from(await res.arrayBuffer()).toString('base64');
-  return { audio, contentType: res.headers.get('content-type') ?? 'audio/mpeg' };
-});
+    const res = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_64`,
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key': ELEVENLABS_API_KEY.value(),
+          'content-type': 'application/json',
+          accept: 'audio/mpeg',
+        },
+        body: JSON.stringify({
+          text,
+          model_id: ELEVENLABS_MODEL.value(),
+          voice_settings: { stability: 0.6, similarity_boost: 0.75, style: 0, use_speaker_boost: true },
+        }),
+      },
+    );
+    if (!res.ok) {
+      logger.warn('ElevenLabs error', { status: res.status, body: (await res.text()).slice(0, 300) });
+      throw new HttpsError('unavailable', 'Voice service unavailable.');
+    }
+    const audio = Buffer.from(await res.arrayBuffer()).toString('base64');
+    return { audio, contentType: res.headers.get('content-type') ?? 'audio/mpeg' };
+  },
+);

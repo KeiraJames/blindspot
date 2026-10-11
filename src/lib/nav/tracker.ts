@@ -94,7 +94,14 @@ export class RouteTracker {
       const b = index.node(route.nodeIds[i + 1]!);
       const vertical = a.floorId !== b.floorId;
       const length = vertical ? 0 : dist(a.position, b.position);
-      const s: Segment = { a: a.position, b: b.position, floorId: vertical ? b.floorId : a.floorId, vertical, length, startDistance: acc };
+      const s: Segment = {
+        a: a.position,
+        b: b.position,
+        floorId: vertical ? b.floorId : a.floorId,
+        vertical,
+        length,
+        startDistance: acc,
+      };
       acc += length;
       return s;
     });
@@ -123,7 +130,10 @@ export class RouteTracker {
   /** The next maneuver (turn, floor change, or arrival) ahead of the walker. */
   nextStep(): RouteStep | undefined {
     return this.steps.find(
-      (s) => (s.kind === 'turn' || s.kind === 'floor_change' || s.kind === 'arrive') && this.stepDistance(s) >= this.progress - 0.01 && !this.announcedManeuver.has(this.steps.indexOf(s)),
+      (s) =>
+        (s.kind === 'turn' || s.kind === 'floor_change' || s.kind === 'arrive') &&
+        this.stepDistance(s) >= this.progress - 0.01 &&
+        !this.announcedManeuver.has(this.steps.indexOf(s)),
     );
   }
 
@@ -156,7 +166,8 @@ export class RouteTracker {
       out.push({ type: 'tracking_restored' });
     }
 
-    if (this.lastFloor !== null && pose.floorId !== this.lastFloor) out.push({ type: 'floor_reached', floorId: pose.floorId });
+    if (this.lastFloor !== null && pose.floorId !== this.lastFloor)
+      out.push({ type: 'floor_reached', floorId: pose.floorId });
     this.lastFloor = pose.floorId;
 
     // On a different floor than the current segment: jump to the stairs/elevator leading there.
@@ -187,7 +198,8 @@ export class RouteTracker {
       if (s.vertical) break;
       if (s.floorId !== pose.floorId) continue;
       const proj = projectOnSegment(pose.position, s.a, s.b);
-      if (!best || proj.distance < best.d - 0.25) best = { i, d: proj.distance, along: s.startDistance + proj.t * s.length };
+      if (!best || proj.distance < best.d - 0.25)
+        best = { i, d: proj.distance, along: s.startDistance + proj.t * s.length };
     }
 
     if (!best) {
@@ -216,7 +228,10 @@ export class RouteTracker {
     const last = this.segments[this.segments.length - 1];
     const dest = last ? last.b : this.index.node(this.route.nodeIds[0]!).position;
     const destFloor = this.index.node(this.route.nodeIds[this.route.nodeIds.length - 1]!).floorId;
-    if (pose.floorId === destFloor && (dist(pose.position, dest) <= this.config.arrivalRadius || this.remaining < 0.5)) {
+    if (
+      pose.floorId === destFloor &&
+      (dist(pose.position, dest) <= this.config.arrivalRadius || this.remaining < 0.5)
+    ) {
       this.arrived = true;
       out.push({ type: 'arrived' });
       return out;
@@ -246,7 +261,10 @@ export class RouteTracker {
     // Heading guidance toward a look-ahead point. Near a turn the look-ahead wraps around
     // the corner, so drift corrections pause until the maneuver has been announced.
     const upcoming = this.nextStep();
-    const nearTurn = upcoming !== undefined && upcoming.kind !== 'arrive' && this.stepDistance(upcoming) - this.progress < this.config.lookAhead + this.config.maneuverDistance;
+    const nearTurn =
+      upcoming !== undefined &&
+      upcoming.kind !== 'arrive' &&
+      this.stepDistance(upcoming) - this.progress < this.config.lookAhead + this.config.maneuverDistance;
     const target = nearTurn ? null : this.lookAheadPoint(this.config.lookAhead);
     if (target && dist(pose.position, target) > 0.5) {
       const err = turnAngle(pose.heading, bearing(pose.position, target));

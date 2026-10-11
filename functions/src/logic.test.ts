@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { canInvite, dayKey, effectiveMapRole, inviteCode, inviteUsable, mergeRole, spendQuota, validateTtsText } from './logic';
+import {
+  canInvite,
+  dayKey,
+  effectiveMapRole,
+  inviteCode,
+  inviteUsable,
+  mergeRole,
+  spendQuota,
+  validateTtsText,
+} from './logic';
 
 describe('roles', () => {
   it('limits who can invite whom', () => {
@@ -54,6 +63,9 @@ describe('tts', () => {
     expect(today).toBe('2026-10-10');
     expect(spendQuota(undefined, 100, 1000, today)).toEqual({ day: today, chars: 100 });
     expect(spendQuota({ day: today, chars: 950 }, 100, 1000, today)).toBeNull();
-    expect(spendQuota({ day: '2026-10-09', chars: 999 }, 100, 1000, today)).toEqual({ day: today, chars: 100 });
+    expect(spendQuota({ day: '2026-10-09', chars: 999 }, 100, 1000, today)).toEqual({
+      day: today,
+      chars: 100,
+    });
   });
 });

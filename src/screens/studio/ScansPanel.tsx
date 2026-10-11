@@ -31,7 +31,9 @@ export function ScansPanel({ mapId }: { mapId: string }) {
         <h2 className="text-lg font-bold">Placing {p.draft.name}</h2>
         {c ? (
           <p aria-live="polite">
-            Option {p.index + 1} of {p.candidates.length}: join its {p.draft.result.openings[opening!]?.category ?? 'door'} {opening! + 1} to <strong>{door?.label}</strong>.
+            Option {p.index + 1} of {p.candidates.length}: join its{' '}
+            {p.draft.result.openings[opening!]?.category ?? 'door'} {opening! + 1} to{' '}
+            <strong>{door?.label}</strong>.
             {c.extraMatches.length > 0 && ` ${c.extraMatches.length} more doors line up.`}
             {c.overlap > 0.05 && ` Warning: overlaps another room by ${Math.round(c.overlap * 100)}%.`}
           </p>
@@ -40,25 +42,52 @@ export function ScansPanel({ mapId }: { mapId: string }) {
         )}
         {p.candidates.length > 1 && (
           <div className="grid grid-cols-2 gap-2">
-            <Button onClick={() => p.choose((p.index - 1 + p.candidates.length) % p.candidates.length)}>Previous option</Button>
+            <Button onClick={() => p.choose((p.index - 1 + p.candidates.length) % p.candidates.length)}>
+              Previous option
+            </Button>
             <Button onClick={() => p.choose((p.index + 1) % p.candidates.length)}>Next option</Button>
           </div>
         )}
         <div className="grid grid-cols-3 gap-2">
-          <Button onClick={() => p.rotate(Math.PI / 2)} aria-label="Rotate 90 degrees left">↺ 90°</Button>
-          <Button onClick={() => p.move(0, 0.25)} aria-label="Move north">↑</Button>
-          <Button onClick={() => p.rotate(-Math.PI / 2)} aria-label="Rotate 90 degrees right">↻ 90°</Button>
-          <Button onClick={() => p.move(-0.25, 0)} aria-label="Move west">←</Button>
-          <Button onClick={() => p.move(0, -0.25)} aria-label="Move south">↓</Button>
-          <Button onClick={() => p.move(0.25, 0)} aria-label="Move east">→</Button>
+          <Button onClick={() => p.rotate(Math.PI / 2)} aria-label="Rotate 90 degrees left">
+            ↺ 90°
+          </Button>
+          <Button onClick={() => p.move(0, 0.25)} aria-label="Move north">
+            ↑
+          </Button>
+          <Button onClick={() => p.rotate(-Math.PI / 2)} aria-label="Rotate 90 degrees right">
+            ↻ 90°
+          </Button>
+          <Button onClick={() => p.move(-0.25, 0)} aria-label="Move west">
+            ←
+          </Button>
+          <Button onClick={() => p.move(0, -0.25)} aria-label="Move south">
+            ↓
+          </Button>
+          <Button onClick={() => p.move(0.25, 0)} aria-label="Move east">
+            →
+          </Button>
         </div>
         <Button
           variant="primary"
           onClick={() => {
-            const pairs = c && p.transform === c.transform ? [{ placedDoorId: c.placedDoorId, scanOpeningId: c.scanOpeningId }, ...c.extraMatches] : [];
-            s.apply((g) => placeScan(g, p.draft!.result, { floorId: s.floorId!, name: p.draft!.name, transform: p.transform!, doorPairs: pairs }));
+            const pairs =
+              c && p.transform === c.transform
+                ? [{ placedDoorId: c.placedDoorId, scanOpeningId: c.scanOpeningId }, ...c.extraMatches]
+                : [];
+            s.apply((g) =>
+              placeScan(g, p.draft!.result, {
+                floorId: s.floorId!,
+                name: p.draft!.name,
+                transform: p.transform!,
+                doorPairs: pairs,
+              }),
+            );
             void markPlaced(p.draft!.result.scanId);
-            void cue('confirm', pairs.length ? `${p.draft!.name} joined at ${door?.label}.` : `${p.draft!.name} placed.`);
+            void cue(
+              'confirm',
+              pairs.length ? `${p.draft!.name} joined at ${door?.label}.` : `${p.draft!.name} placed.`,
+            );
             p.cancel();
           }}
         >
@@ -72,14 +101,17 @@ export function ScansPanel({ mapId }: { mapId: string }) {
   return (
     <Card className="flex flex-col gap-2">
       <h2 className="text-lg font-bold">Scans to place ({unplaced.length})</h2>
-      {unplaced.length === 0 && <p className="text-muted">All scans are on the map. Scan another room from the map screen.</p>}
+      {unplaced.length === 0 && (
+        <p className="text-muted">All scans are on the map. Scan another room from the map screen.</p>
+      )}
       <ul className="flex flex-col gap-2">
         {unplaced.map((d) => (
           <li key={d.result.scanId} className="flex justify-between items-center gap-2">
             <span>
               {d.name}{' '}
               <span className="text-muted text-sm">
-                · {d.result.openings.length} doors{d.result.stairs.length ? ` · ${d.result.stairs.length} stairs` : ''}
+                · {d.result.openings.length} doors
+                {d.result.stairs.length ? ` · ${d.result.stairs.length} stairs` : ''}
               </span>
             </span>
             <Button onClick={() => p.start(s.graph!, s.floorId!, d)}>Place</Button>

@@ -72,7 +72,9 @@ export default function StudioScreen() {
       } else if (!typing && s.selection.length === 1 && e.key.startsWith('Arrow')) {
         e.preventDefault();
         const d = e.shiftKey ? 1 : 0.25;
-        const [dx, dy] = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, d], ArrowDown: [0, -d] }[e.key] ?? [0, 0];
+        const [dx, dy] = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, d], ArrowDown: [0, -d] }[
+          e.key
+        ] ?? [0, 0];
         s.nudge(s.selection[0]!, dx!, dy!);
       }
     };
@@ -82,7 +84,8 @@ export default function StudioScreen() {
 
   const result = useMemo(() => (s.graph ? validateGraph(s.graph) : null), [s.graph]);
 
-  if (map.isLoading || draft.isLoading || !s.graph || s.mapId !== mapId) return <Spinner label="Opening Map Studio" />;
+  if (map.isLoading || draft.isLoading || !s.graph || s.mapId !== mapId)
+    return <Spinner label="Opening Map Studio" />;
   if (!map.data) return <ErrorBox error="Map not found" />;
   if (!canEdit(map.data.role)) return <ErrorBox error="You can navigate this map but not edit it." />;
 
@@ -119,7 +122,10 @@ export default function StudioScreen() {
               role="tab"
               aria-selected={f.id === floor.id}
               onClick={() => s.setFloor(f.id)}
-              className={cx('min-h-12 px-4 rounded-xl border font-semibold whitespace-nowrap', f.id === floor.id ? 'bg-accent text-accent-fg border-accent' : 'border-line bg-surface-2')}
+              className={cx(
+                'min-h-12 px-4 rounded-xl border font-semibold whitespace-nowrap',
+                f.id === floor.id ? 'bg-accent text-accent-fg border-accent' : 'border-line bg-surface-2',
+              )}
             >
               {f.name}
             </button>
@@ -131,12 +137,21 @@ export default function StudioScreen() {
         <div className="flex flex-col gap-2 min-w-0">
           <div role="toolbar" aria-label="Canvas tools" className="flex flex-wrap gap-2 items-end">
             {(['select', 'add', 'connect'] as Tool[]).map((t) => (
-              <Button key={t} variant={s.tool === t ? 'primary' : 'secondary'} aria-pressed={s.tool === t} onClick={() => s.setTool(t)}>
+              <Button
+                key={t}
+                variant={s.tool === t ? 'primary' : 'secondary'}
+                aria-pressed={s.tool === t}
+                onClick={() => s.setTool(t)}
+              >
                 {{ select: 'Select / move', add: 'Add', connect: 'Connect' }[t]}
               </Button>
             ))}
             {s.tool === 'add' && (
-              <Select label="Add" value={s.addKind} onChange={(e) => s.setAddKind(e.target.value as NodeKind)}>
+              <Select
+                label="Add"
+                value={s.addKind}
+                onChange={(e) => s.setAddKind(e.target.value as NodeKind)}
+              >
                 <option value="junction">Hallway point</option>
                 <option value="room">Room</option>
                 <option value="door">Door</option>
@@ -146,7 +161,11 @@ export default function StudioScreen() {
               </Select>
             )}
             {s.tool === 'connect' && (
-              <Select label="Connect by" value={s.connectKind} onChange={(e) => s.setConnectKind(e.target.value as EdgeKind)}>
+              <Select
+                label="Connect by"
+                value={s.connectKind}
+                onChange={(e) => s.setConnectKind(e.target.value as EdgeKind)}
+              >
                 <option value="walk">Walkway</option>
                 <option value="door">Through a door</option>
                 <option value="ramp">Ramp</option>
@@ -154,21 +173,47 @@ export default function StudioScreen() {
             )}
           </div>
           <p className="text-sm text-muted">
-            {s.tool === 'select' && 'Tap a place to edit it; drag to move. Arrow keys nudge the selected place.'}
+            {s.tool === 'select' &&
+              'Tap a place to edit it; drag to move. Arrow keys nudge the selected place.'}
             {s.tool === 'add' && 'Tap empty space to add a place.'}
-            {s.tool === 'connect' && 'Tap one place, then another, to connect them. Use the Places panel for stairs and elevators between floors.'}
+            {s.tool === 'connect' &&
+              'Tap one place, then another, to connect them. Use the Places panel for stairs and elevators between floors.'}
           </p>
           <div className="h-[55vh] lg:h-[70vh]">
             <StudioCanvas highlight={highlight} />
           </div>
           <details className="rounded-2xl border border-line p-3">
-            <summary className="font-semibold min-h-12 flex items-center cursor-pointer">Floor settings</summary>
+            <summary className="font-semibold min-h-12 flex items-center cursor-pointer">
+              Floor settings
+            </summary>
             <div className="grid grid-cols-2 gap-2 mt-2">
-              <Field label="Name" value={floor.name} onChange={(e) => s.updateFloor(floor.id, { name: e.target.value })} />
-              <Field label="Level" type="number" value={floor.level} onChange={(e) => s.updateFloor(floor.id, { level: Number(e.target.value) })} />
-              <Field label="Height above ground (m)" type="number" step="0.1" value={floor.elevation} onChange={(e) => s.updateFloor(floor.id, { elevation: Number(e.target.value) })} />
+              <Field
+                label="Name"
+                value={floor.name}
+                onChange={(e) => s.updateFloor(floor.id, { name: e.target.value })}
+              />
+              <Field
+                label="Level"
+                type="number"
+                value={floor.level}
+                onChange={(e) => s.updateFloor(floor.id, { level: Number(e.target.value) })}
+              />
+              <Field
+                label="Height above ground (m)"
+                type="number"
+                step="0.1"
+                value={floor.elevation}
+                onChange={(e) => s.updateFloor(floor.id, { elevation: Number(e.target.value) })}
+              />
               <div className="flex items-end">
-                <Button variant="danger" block disabled={s.graph.floors.length <= 1} onClick={() => confirm(`Delete ${floor.name} and everything on it?`) && s.deleteFloor(floor.id)}>
+                <Button
+                  variant="danger"
+                  block
+                  disabled={s.graph.floors.length <= 1}
+                  onClick={() =>
+                    confirm(`Delete ${floor.name} and everything on it?`) && s.deleteFloor(floor.id)
+                  }
+                >
                   Delete floor
                 </Button>
               </div>
@@ -186,11 +231,18 @@ export default function StudioScreen() {
                 aria-selected={panel === p.id}
                 aria-controls={`panel-${p.id}`}
                 onClick={() => setPanel(p.id)}
-                className={cx('min-h-12 rounded-xl text-sm font-semibold border', panel === p.id ? 'bg-accent text-accent-fg border-accent' : 'border-line bg-surface-2')}
+                className={cx(
+                  'min-h-12 rounded-xl text-sm font-semibold border',
+                  panel === p.id ? 'bg-accent text-accent-fg border-accent' : 'border-line bg-surface-2',
+                )}
               >
                 {p.label}
-                {p.id === 'checks' && result && result.issues.length > 0 && <span className="sr-only">, {result.issues.length} issues</span>}
-                {p.id === 'checks' && errors + warnings > 0 && <span aria-hidden> ({errors + warnings})</span>}
+                {p.id === 'checks' && result && result.issues.length > 0 && (
+                  <span className="sr-only">, {result.issues.length} issues</span>
+                )}
+                {p.id === 'checks' && errors + warnings > 0 && (
+                  <span aria-hidden> ({errors + warnings})</span>
+                )}
               </button>
             ))}
           </div>
@@ -207,8 +259,8 @@ export default function StudioScreen() {
           </div>
           <Card>
             <p className="text-sm text-muted">
-              {s.graph.nodes.length} places · {s.graph.edges.length} connections · {s.graph.rooms.length} scanned rooms ·{' '}
-              {errors === 0 ? 'no errors' : `${errors} errors`}
+              {s.graph.nodes.length} places · {s.graph.edges.length} connections · {s.graph.rooms.length}{' '}
+              scanned rooms · {errors === 0 ? 'no errors' : `${errors} errors`}
             </p>
           </Card>
         </aside>

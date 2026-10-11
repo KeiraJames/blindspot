@@ -46,7 +46,16 @@ export function Screen({
           {actions}
         </div>
       </header>
-      <main id="main" className={cx('mx-auto w-full flex-1 px-4 py-4 safe-bottom flex flex-col gap-4', wide ? 'max-w-6xl' : 'max-w-2xl', className)}>{children}</main>
+      <main
+        id="main"
+        className={cx(
+          'mx-auto w-full flex-1 px-4 py-4 safe-bottom flex flex-col gap-4',
+          wide ? 'max-w-6xl' : 'max-w-2xl',
+          className,
+        )}
+      >
+        {children}
+      </main>
     </div>
   );
 }

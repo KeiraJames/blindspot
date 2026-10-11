@@ -70,7 +70,10 @@ function Root() {
 
   return (
     <>
-      <a href="#main" className="sr-only-focusable absolute left-2 top-2 z-50 rounded bg-accent text-accent-fg px-3 py-2">
+      <a
+        href="#main"
+        className="sr-only-focusable absolute left-2 top-2 z-50 rounded bg-accent text-accent-fg px-3 py-2"
+      >
         Skip to content
       </a>
       <SafetyNotice />

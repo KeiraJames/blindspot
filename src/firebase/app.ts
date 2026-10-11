@@ -42,7 +42,9 @@ export function firebase(): FirebaseHandles | null {
   // that hang inside WKWebView (capacitor:// scheme).
   const auth = initializeAuth(app, { persistence: indexedDBLocalPersistence });
   // Persistent cache gives offline navigation on previously loaded map versions.
-  const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentSingleTabManager({}) }) });
+  const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentSingleTabManager({}) }),
+  });
   const storage = getStorage(app);
   const functions = getFunctions(app, env.VITE_FUNCTIONS_REGION || 'us-central1');
   if (env.VITE_FIREBASE_EMULATORS === 'true') {

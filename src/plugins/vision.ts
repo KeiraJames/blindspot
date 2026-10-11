@@ -29,8 +29,14 @@ export interface VisionPlugin {
   configure(config: VisionConfig): Promise<{ customModelLoaded: boolean }>;
   setEnabled(options: { enabled: boolean }): Promise<void>;
   addListener(event: 'hazard', cb: (e: HazardEvent) => void): Promise<PluginListenerHandle>;
-  addListener(event: 'text', cb: (e: { text: string; confidence: number; relativeBearing: number }) => void): Promise<PluginListenerHandle>;
-  addListener(event: 'thermal', cb: (e: { state: 'nominal' | 'fair' | 'serious' | 'critical'; rate: number }) => void): Promise<PluginListenerHandle>;
+  addListener(
+    event: 'text',
+    cb: (e: { text: string; confidence: number; relativeBearing: number }) => void,
+  ): Promise<PluginListenerHandle>;
+  addListener(
+    event: 'thermal',
+    cb: (e: { state: 'nominal' | 'fair' | 'serious' | 'critical'; rate: number }) => void,
+  ): Promise<PluginListenerHandle>;
 }
 
 class VisionWeb extends WebPlugin implements VisionPlugin {

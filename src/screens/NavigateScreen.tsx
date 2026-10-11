@@ -44,7 +44,9 @@ export default function NavigateScreen() {
   if (!published.data)
     return (
       <Screen title="Navigate" back={`/maps/${mapId}`}>
-        <ErrorBox error={published.error ?? 'This map has not been published yet. Publish it from Map Studio first.'} />
+        <ErrorBox
+          error={published.error ?? 'This map has not been published yet. Publish it from Map Studio first.'}
+        />
       </Screen>
     );
   return <Navigator mapId={mapId!} graph={published.data.graph} />;
@@ -57,7 +59,13 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
     () =>
       new NavigationController(
         graph,
-        { cue: (n, t, p) => void cue(n, t, p), say: (t, p) => void say(t, p), prefetch: (t) => voice.prefetch(t), repeat: () => voice.repeat(), stopSpeech: () => voice.stop() },
+        {
+          cue: (n, t, p) => void cue(n, t, p),
+          say: (t, p) => void say(t, p),
+          prefetch: (t) => voice.prefetch(t),
+          repeat: () => voice.repeat(),
+          stopSpeech: () => voice.stop(),
+        },
         navOptions(useSettings.getState()),
       ),
     [graph],
@@ -83,7 +91,9 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
     void ARNav.isSupported()
       .then((s) => setArAvailable(Capacitor.isNativePlatform() && s.worldTracking))
       .catch(() => setArAvailable(false));
-    say(`${controller.destinations.length} places on this map. Choose where you are, then where to go. Swipe left or right to browse, double-tap to choose.`);
+    say(
+      `${controller.destinations.length} places on this map. Choose where you are, then where to go. Swipe left or right to browse, double-tap to choose.`,
+    );
   }, [controller]);
 
   const stopPoseSources = useCallback(async () => {
@@ -112,7 +122,12 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
         const landing = controller.index.node(landingId);
         if (sim.current) sim.current.setFloor(landing.floorId, landing.position);
         else if (adapter.current && lastAR.current) {
-          adapter.current.anchorAt(lastAR.current, landing.position, landing.floorId, state.pose?.heading ?? controller.initialBearing());
+          adapter.current.anchorAt(
+            lastAR.current,
+            landing.position,
+            landing.floorId,
+            state.pose?.heading ?? controller.initialBearing(),
+          );
         }
         void cue('floorChange', `Confirmed. ${controller.index.floors.get(landing.floorId)?.name}.`);
         return;
@@ -156,23 +171,45 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
       Vision.addListener('hazard', (h) => controller.hazard(h)),
       Vision.addListener('text', (t) => {
         const dest = controller.label(controller.state.destinationId);
-        if (dest && dest.toLowerCase().includes(t.text.toLowerCase())) void say(`Sign for ${t.text} detected.`, 'low');
+        if (dest && dest.toLowerCase().includes(t.text.toLowerCase()))
+          void say(`Sign for ${t.text} detected.`, 'low');
       }),
     ]);
     if (settings.showCamera) {
       document.body.classList.add('ar-active');
       setArVisible(true);
     }
-    await ARNav.start({ worldMapPath: worldMapPath ?? undefined, showCamera: settings.showCamera, nativeGestures: true, poseRate: 10 });
-    await Vision.configure({ rate: 4, detectPeople: true, detectText: true, depthObstacles: true, obstacleDistance: 1.5, customModel: true });
+    await ARNav.start({
+      worldMapPath: worldMapPath ?? undefined,
+      showCamera: settings.showCamera,
+      nativeGestures: true,
+      poseRate: 10,
+    });
+    await Vision.configure({
+      rate: 4,
+      detectPeople: true,
+      detectText: true,
+      depthObstacles: true,
+      obstacleDistance: 1.5,
+      customModel: true,
+    });
     await Vision.setEnabled({ enabled: settings.hazardAlerts });
     if (worldMapPath) void say('Looking around to find your location. Slowly turn the phone.');
+    else
+      void say(
+        `This room has no saved scan, so I can't find your exact position. Stand at ${startNode.label}, hold the phone upright and face the way the first instruction points. Tap the screen at any time to hear where you are.`,
+      );
   };
 
   const startSim = () => {
-    const s = new WalkSimulator(controller.index, controller.state.startId!, controller.initialBearing(), (p) => {
-      controller.onPose(p);
-    });
+    const s = new WalkSimulator(
+      controller.index,
+      controller.state.startId!,
+      controller.initialBearing(),
+      (p) => {
+        controller.onPose(p);
+      },
+    );
     s.followRoute(controller.state.route!.nodeIds);
     sim.current = s;
     s.start();
@@ -198,7 +235,12 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
   // Start ARKit (or the simulator) whenever guidance begins, from the Start button or a double-tap.
   const prevPhase = useRef(state.phase);
   useEffect(() => {
-    if (prevPhase.current === 'preview' && state.phase === 'guiding' && !sim.current && arHandles.current.length === 0) {
+    if (
+      prevPhase.current === 'preview' &&
+      state.phase === 'guiding' &&
+      !sim.current &&
+      arHandles.current.length === 0
+    ) {
       void (async () => {
         if (arAvailable) {
           try {
@@ -229,11 +271,21 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
   const dictate = async () => {
     setListening(true);
     try {
-      const { transcript } = await Speech.listen({ timeoutMs: 6000, contextualStrings: controller.destinations.map((d) => d.label) });
+      const { transcript } = await Speech.listen({
+        timeoutMs: 6000,
+        contextualStrings: controller.destinations.map((d) => d.label),
+      });
       setQuery(transcript);
       const hits = controller.findDestination(transcript);
-      if (hits.length === 1 || (hits[0] && transcript.toLowerCase().includes(hits[0].label.toLowerCase()))) chooseDestination(hits[0]!.id);
-      else if (hits.length > 1) void say(`${hits.length} matches. ${hits.slice(0, 3).map((h) => nodeDisplayName(graph, h)).join(', ')}.`);
+      if (hits.length === 1 || (hits[0] && transcript.toLowerCase().includes(hits[0].label.toLowerCase())))
+        chooseDestination(hits[0]!.id);
+      else if (hits.length > 1)
+        void say(
+          `${hits.length} matches. ${hits
+            .slice(0, 3)
+            .map((h) => nodeDisplayName(graph, h))
+            .join(', ')}.`,
+        );
       else void say(`No place called ${transcript}.`);
     } catch {
       void say('Voice search is not available. Type the place name instead.');
@@ -253,7 +305,9 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
     setQuery('');
   };
 
-  const viewFloor = state.pose?.floorId ?? (state.startId ? controller.index.node(state.startId).floorId : graph.floors[0]!.id);
+  const viewFloor =
+    state.pose?.floorId ??
+    (state.startId ? controller.index.node(state.startId).floorId : graph.floors[0]!.id);
   const filtered = query.trim() ? controller.findDestination(query) : controller.destinations;
   const active = state.phase === 'guiding' || state.phase === 'paused' || state.phase === 'arrived';
   const choosingStart = state.phase === 'choose_start' || (!state.startId && state.phase !== 'preview');
@@ -261,10 +315,18 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
   if (active) {
     return (
       <div className={cx('fixed inset-0 flex flex-col', !arVisible && 'bg-bg')}>
-        <GestureSurface onGesture={onGesture} label="Navigation. Swipe up to repeat, tap for where am I, touch and hold to pause, swipe down to end." className="flex-1 flex flex-col safe-top px-4 gap-3">
+        <GestureSurface
+          onGesture={onGesture}
+          label="Navigation. Swipe up to repeat, tap for where am I, touch and hold to pause, swipe down to end."
+          className="flex-1 flex flex-col safe-top px-4 gap-3"
+        >
           <div className="flex items-start justify-between gap-2 pt-2">
             <p className="text-muted font-semibold">
-              {state.phase === 'arrived' ? 'Arrived' : state.phase === 'paused' ? 'Paused' : `${formatDistance(state.remaining, settings.units, settings.stepLength)} to go`}
+              {state.phase === 'arrived'
+                ? 'Arrived'
+                : state.phase === 'paused'
+                  ? 'Paused'
+                  : `${formatDistance(state.remaining, settings.units, settings.stepLength)} to go`}
             </p>
             <p className="text-muted text-right">{controller.label(state.destinationId)}</p>
           </div>
@@ -273,13 +335,24 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
           </p>
           {arError && <p className="text-warn">AR unavailable ({arError}). Using the walk simulator.</p>}
           {!arVisible && (
-            <FloorPlan graph={graph} floorId={viewFloor} route={state.route?.nodeIds} pose={state.pose} className="w-full flex-1 min-h-40 rounded-2xl" showLabels />
+            <FloorPlan
+              graph={graph}
+              floorId={viewFloor}
+              route={state.route?.nodeIds}
+              pose={state.pose}
+              className="w-full flex-1 min-h-40 rounded-2xl"
+              showLabels
+            />
           )}
         </GestureSurface>
 
         {simInstance && <SimPanel sim={simInstance} onChange={() => force((n) => n + 1)} />}
 
-        <nav aria-label="Navigation controls" data-no-gesture className="grid grid-cols-3 gap-2 p-3 safe-bottom bg-bg/90 border-t border-line">
+        <nav
+          aria-label="Navigation controls"
+          data-no-gesture
+          className="grid grid-cols-3 gap-2 p-3 safe-bottom bg-bg/90 border-t border-line"
+        >
           <Button large onClick={() => voice.repeat()}>
             Repeat
           </Button>
@@ -291,7 +364,10 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
               New trip
             </Button>
           ) : (
-            <Button large onClick={() => (state.phase === 'paused' ? controller.resume() : controller.pause())}>
+            <Button
+              large
+              onClick={() => (state.phase === 'paused' ? controller.resume() : controller.pause())}
+            >
               {state.phase === 'paused' ? 'Resume' : 'Pause'}
             </Button>
           )}
@@ -299,7 +375,16 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
             Nearest exit
           </Button>
           {state.steps.some((s) => s.kind === 'floor_change') && (
-            <Button large onClick={() => onGesture(state.steps.find((s) => s.kind === 'floor_change')!.floorChange!.direction === 'up' ? 'twoFingerUp' : 'twoFingerDown')}>
+            <Button
+              large
+              onClick={() =>
+                onGesture(
+                  state.steps.find((s) => s.kind === 'floor_change')!.floorChange!.direction === 'up'
+                    ? 'twoFingerUp'
+                    : 'twoFingerDown',
+                )
+              }
+            >
               I changed floor
             </Button>
           )}
@@ -312,16 +397,27 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
   }
 
   return (
-    <Screen title={choosingStart ? 'Where are you?' : state.phase === 'preview' ? 'Your route' : 'Where to?'} back={`/maps/${mapId}`}>
+    <Screen
+      title={choosingStart ? 'Where are you?' : state.phase === 'preview' ? 'Your route' : 'Where to?'}
+      back={`/maps/${mapId}`}
+    >
       {state.phase === 'preview' && state.route ? (
         <>
           <Card className="flex flex-col gap-3">
             <p className="text-lg">
-              From <strong>{controller.label(state.startId)}</strong> to <strong>{controller.label(state.destinationId)}</strong>, {formatDistance(state.route.length, settings.units, settings.stepLength)}.
+              From <strong>{controller.label(state.startId)}</strong> to{' '}
+              <strong>{controller.label(state.destinationId)}</strong>,{' '}
+              {formatDistance(state.route.length, settings.units, settings.stepLength)}.
             </p>
             <ol className="list-decimal pl-6 flex flex-col gap-1">
               {state.steps.map((s, i) => (
-                <li key={i}>{stepText(s, { unit: settings.units, stepLength: settings.stepLength }, controller.label(state.destinationId))}</li>
+                <li key={i}>
+                  {stepText(
+                    s,
+                    { unit: settings.units, stepLength: settings.stepLength },
+                    controller.label(state.destinationId),
+                  )}
+                </li>
               ))}
             </ol>
             <Toggle
@@ -340,7 +436,12 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
           <Button block onClick={() => controller.gesture('swipeBack')}>
             Change destination
           </Button>
-          <FloorPlan graph={graph} floorId={controller.index.node(state.startId!).floorId} route={state.route.nodeIds} className="w-full aspect-square rounded-2xl" />
+          <FloorPlan
+            graph={graph}
+            floorId={controller.index.node(state.startId!).floorId}
+            route={state.route.nodeIds}
+            className="w-full aspect-square rounded-2xl"
+          />
         </>
       ) : (
         <>
@@ -348,13 +449,24 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
           {state.startId && !choosingStart && (
             <p className="text-muted">
               Starting from <strong>{controller.label(state.startId)}</strong>.{' '}
-              <button type="button" className="underline text-accent min-h-12" onClick={() => controller.clearStart()}>
+              <button
+                type="button"
+                className="underline text-accent min-h-12"
+                onClick={() => controller.clearStart()}
+              >
                 Change
               </button>
             </p>
           )}
           <div className="flex gap-2 items-end">
-            <Field label={choosingStart ? 'Search for where you are' : 'Search for a place'} type="search" className="flex-1" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" />
+            <Field
+              label={choosingStart ? 'Search for where you are' : 'Search for a place'}
+              type="search"
+              className="flex-1"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              autoComplete="off"
+            />
             {!choosingStart && (
               <Button onClick={() => void dictate()} disabled={listening} aria-label="Search by voice">
                 {listening ? 'Listening…' : 'Speak'}
@@ -373,7 +485,11 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
               .filter((d) => choosingStart || d.id !== state.startId)
               .map((d) => (
                 <li key={d.id}>
-                  <Button block className="justify-start text-left" onClick={() => (choosingStart ? chooseStart(d.id) : chooseDestination(d.id))}>
+                  <Button
+                    block
+                    className="justify-start text-left"
+                    onClick={() => (choosingStart ? chooseStart(d.id) : chooseDestination(d.id))}
+                  >
                     {nodeDisplayName(graph, d)}
                   </Button>
                 </li>
@@ -404,8 +520,15 @@ function SimPanel({ sim, onChange }: { sim: WalkSimulator; onChange: () => void 
     onChange();
   };
   return (
-    <section data-no-gesture aria-label="Walk simulator" className="mx-3 mb-2 rounded-2xl border border-warn p-2 bg-bg/90 flex flex-wrap gap-2 items-center">
-      <span className="text-warn text-sm font-semibold w-full">Walk simulator: ARKit isn't available here.{' '}<span className="hidden md:inline">Arrow keys also move.</span></span>
+    <section
+      data-no-gesture
+      aria-label="Walk simulator"
+      className="mx-3 mb-2 rounded-2xl border border-warn p-2 bg-bg/90 flex flex-wrap gap-2 items-center"
+    >
+      <span className="text-warn text-sm font-semibold w-full">
+        Walk simulator: ARKit isn't available here.{' '}
+        <span className="hidden md:inline">Arrow keys also move.</span>
+      </span>
       <Button onClick={() => toggle('autopilot')} aria-pressed={sim.autopilot}>
         {sim.autopilot ? 'Stop walking' : 'Auto-walk'}
       </Button>
@@ -419,7 +542,9 @@ function SimPanel({ sim, onChange }: { sim: WalkSimulator; onChange: () => void 
       <Button onClick={() => sim.turn(-Math.PI / 4)} aria-label="Turn right 45 degrees">
         ↻
       </Button>
-      <Button onClick={() => sim.setTracking(sim.pose.tracking === 'lost' ? 'normal' : 'lost')}>{sim.pose.tracking === 'lost' ? 'Restore tracking' : 'Lose tracking'}</Button>
+      <Button onClick={() => sim.setTracking(sim.pose.tracking === 'lost' ? 'normal' : 'lost')}>
+        {sim.pose.tracking === 'lost' ? 'Restore tracking' : 'Lose tracking'}
+      </Button>
     </section>
   );
 }

@@ -30,7 +30,9 @@ export function StudioCanvas({ highlight }: { highlight: string[] }) {
         }
         s.select(node.id, e.shiftKey || e.metaKey);
         if (s.tool === 'select') {
-          (e.currentTarget.ownerSVGElement ?? (e.currentTarget as unknown as SVGSVGElement)).setPointerCapture?.(e.pointerId);
+          (
+            e.currentTarget.ownerSVGElement ?? (e.currentTarget as unknown as SVGSVGElement)
+          ).setPointerCapture?.(e.pointerId);
           dragging.current = node.id;
           moved.current = false;
           s.beginDrag();

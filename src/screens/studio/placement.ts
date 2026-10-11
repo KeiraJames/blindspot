@@ -32,7 +32,12 @@ export const usePlacement = create<PlacementState>((set, get) => ({
   start: (graph, floorId, draft) => {
     const candidates = proposeDoorMatches(graph, floorId, draft.result);
     const spot = freeSpot(graph, floorId);
-    set({ draft, candidates, index: 0, transform: candidates[0]?.transform ?? { theta: 0, tx: spot.x, ty: spot.y } });
+    set({
+      draft,
+      candidates,
+      index: 0,
+      transform: candidates[0]?.transform ?? { theta: 0, tx: spot.x, ty: spot.y },
+    });
   },
   choose: (i) => {
     const c = get().candidates[i];
@@ -43,7 +48,15 @@ export const usePlacement = create<PlacementState>((set, get) => ({
     const d = get().draft;
     if (!t || !d) return;
     // Rotate about the room's centre so it stays in place.
-    const c = d.result.floorPolygon.length ? d.result.floorPolygon.reduce((a, p) => ({ x: a.x + p.x / d.result.floorPolygon.length, y: a.y + p.y / d.result.floorPolygon.length }), { x: 0, y: 0 }) : { x: 0, y: 0 };
+    const c = d.result.floorPolygon.length
+      ? d.result.floorPolygon.reduce(
+          (a, p) => ({
+            x: a.x + p.x / d.result.floorPolygon.length,
+            y: a.y + p.y / d.result.floorPolygon.length,
+          }),
+          { x: 0, y: 0 },
+        )
+      : { x: 0, y: 0 };
     const before = applyTransform(t, c);
     const theta = wrapAngle(t.theta + r);
     const nt = { theta, tx: 0, ty: 0 };
@@ -60,5 +73,8 @@ export const usePlacement = create<PlacementState>((set, get) => ({
 export function ghostFor(draft: ScanDraft | null, t: Transform2D | null) {
   if (!draft || !t) return null;
   const scan = normalizeOpeningNormals(draft.result);
-  return { footprint: scan.floorPolygon.map((p) => applyTransform(t, p)), doors: scan.openings.map((o) => applyTransform(t, o.position)) };
+  return {
+    footprint: scan.floorPolygon.map((p) => applyTransform(t, p)),
+    doors: scan.openings.map((o) => applyTransform(t, o.position)),
+  };
 }

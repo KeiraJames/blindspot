@@ -26,7 +26,13 @@ export class WalkSimulator {
     private emit: (p: MapPose) => void,
   ) {
     const n = index.node(startNodeId);
-    this.pose = { floorId: n.floorId, position: { ...n.position }, heading, tracking: 'normal', timestamp: Date.now() };
+    this.pose = {
+      floorId: n.floorId,
+      position: { ...n.position },
+      heading,
+      tracking: 'normal',
+      timestamp: Date.now(),
+    };
   }
 
   start() {
@@ -68,7 +74,10 @@ export class WalkSimulator {
 
   step(meters: number) {
     const h = this.pose.heading;
-    this.move({ x: this.pose.position.x + Math.cos(h) * meters, y: this.pose.position.y + Math.sin(h) * meters });
+    this.move({
+      x: this.pose.position.x + Math.cos(h) * meters,
+      y: this.pose.position.y + Math.sin(h) * meters,
+    });
   }
 
   turn(radians: number) {
@@ -77,7 +86,12 @@ export class WalkSimulator {
   }
 
   setFloor(floorId: string, at?: Vec2) {
-    this.pose = { ...this.pose, floorId, position: at ? { ...at } : this.pose.position, timestamp: Date.now() };
+    this.pose = {
+      ...this.pose,
+      floorId,
+      position: at ? { ...at } : this.pose.position,
+      timestamp: Date.now(),
+    };
     this.emit(this.pose);
   }
 
@@ -125,7 +139,10 @@ export class WalkSimulator {
       this.pose = {
         ...this.pose,
         heading: h,
-        position: { x: this.pose.position.x + Math.cos(h) * budget, y: this.pose.position.y + Math.sin(h) * budget },
+        position: {
+          x: this.pose.position.x + Math.cos(h) * budget,
+          y: this.pose.position.y + Math.sin(h) * budget,
+        },
       };
       budget = 0;
     }

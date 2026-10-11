@@ -97,7 +97,8 @@ export class VoiceGuide {
     try {
       // Hazards can't wait on the network: only an already-cached clip is fast enough.
       const budget = next.priority === 'high' ? 150 : this.latencyBudgetMs;
-      const blob = this.settings.premium && this.premiumFailures < 3 ? await this.clipWithin(next.text, budget) : null;
+      const blob =
+        this.settings.premium && this.premiumFailures < 3 ? await this.clipWithin(next.text, budget) : null;
       if (this.speaking !== next) return; // interrupted while fetching
       if (blob) await this.playBlob(blob);
       else await Speech.speak({ text: next.text, rate: this.settings.rate, interrupt: false });
@@ -111,10 +112,7 @@ export class VoiceGuide {
   }
 
   private clipWithin(text: string, budgetMs: number): Promise<Blob | null> {
-    return Promise.race([
-      this.clip(text),
-      new Promise<null>((r) => setTimeout(() => r(null), budgetMs)),
-    ]);
+    return Promise.race([this.clip(text), new Promise<null>((r) => setTimeout(() => r(null), budgetMs))]);
   }
 
   private clip(text: string): Promise<Blob | null> {
@@ -143,7 +141,8 @@ export class VoiceGuide {
     try {
       await idb.set('tts', key, blob);
       const keys = await idb.keys('tts');
-      if (keys.length > MAX_CACHE_ENTRIES) for (const k of keys.slice(0, keys.length - MAX_CACHE_ENTRIES)) await idb.del('tts', k);
+      if (keys.length > MAX_CACHE_ENTRIES)
+        for (const k of keys.slice(0, keys.length - MAX_CACHE_ENTRIES)) await idb.del('tts', k);
     } catch {
       /* cache is best effort */
     }

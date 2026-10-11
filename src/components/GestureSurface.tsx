@@ -7,7 +7,17 @@ import { GestureRecognizer, type Gesture } from '../lib/gestures/recognizer';
  * the iOS app uses the native direct-interaction overlay from ARNavPlugin instead and the
  * on-screen buttons remain available as a fallback.
  */
-export function GestureSurface({ onGesture, label, children, className }: { onGesture: (g: Gesture) => void; label: string; children?: ReactNode; className?: string }) {
+export function GestureSurface({
+  onGesture,
+  label,
+  children,
+  className,
+}: {
+  onGesture: (g: Gesture) => void;
+  label: string;
+  children?: ReactNode;
+  className?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const cb = useRef(onGesture);
   useEffect(() => {
@@ -41,7 +51,13 @@ export function GestureSurface({ onGesture, label, children, className }: { onGe
   }, []);
 
   return (
-    <div ref={ref} role="application" aria-label={label} className={className} style={{ touchAction: 'none' }}>
+    <div
+      ref={ref}
+      role="application"
+      aria-label={label}
+      className={className}
+      style={{ touchAction: 'none' }}
+    >
       {children}
     </div>
   );

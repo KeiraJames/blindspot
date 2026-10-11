@@ -21,7 +21,9 @@ export function MapScreen() {
           Your role: <strong>{ROLE_LABELS[m.role]}</strong>
         </p>
         <p className="text-muted">
-          {m.latestVersion ? `Published version ${m.latestVersion}.` : 'Not published yet. Publish from Map Studio so people can navigate.'}
+          {m.latestVersion
+            ? `Published version ${m.latestVersion}.`
+            : 'Not published yet. Publish from Map Studio so people can navigate.'}
           {latest && latest.status === 'pending' && ' A new version is being checked.'}
           {latest && latest.status === 'invalid' && ' The newest version has errors and was not published.'}
         </p>

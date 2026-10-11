@@ -30,7 +30,9 @@ export function Inspector() {
   const node = g.nodes.find((n) => n.id === id);
 
   if (!node) {
-    const onFloor = g.nodes.filter((n) => n.floorId === s.floorId).sort((a, b) => a.label.localeCompare(b.label));
+    const onFloor = g.nodes
+      .filter((n) => n.floorId === s.floorId)
+      .sort((a, b) => a.label.localeCompare(b.label));
     return (
       <Card className="flex flex-col gap-2">
         <h2 className="text-lg font-bold">Places on this floor ({onFloor.length})</h2>
@@ -57,7 +59,9 @@ export function Inspector() {
     return g.nodes.find((n) => n.id === (e.from === node.id ? e.to : e.from));
   };
   const floorName = (fid: string) => g.floors.find((f) => f.id === fid)?.name ?? '';
-  const candidates = g.nodes.filter((n) => n.id !== node.id && !edges.some((e) => e.from === n.id || e.to === n.id));
+  const candidates = g.nodes.filter(
+    (n) => n.id !== node.id && !edges.some((e) => e.from === n.id || e.to === n.id),
+  );
 
   return (
     <Card className="flex flex-col gap-3">
@@ -67,15 +71,29 @@ export function Inspector() {
           Done
         </Button>
       </div>
-      <Field label="Name" value={node.label} onChange={(e) => s.updateNode(node.id, { label: e.target.value })} />
-      <Select label="Type" value={node.kind} onChange={(e) => s.updateNode(node.id, { kind: e.target.value as NodeKind })}>
+      <Field
+        label="Name"
+        value={node.label}
+        onChange={(e) => s.updateNode(node.id, { label: e.target.value })}
+      />
+      <Select
+        label="Type"
+        value={node.kind}
+        onChange={(e) => s.updateNode(node.id, { kind: e.target.value as NodeKind })}
+      >
         {Object.entries(KIND_LABELS).map(([k, v]) => (
           <option key={k} value={k}>
             {v}
           </option>
         ))}
       </Select>
-      <Select label="Point of interest" value={node.poiType ?? ''} onChange={(e) => s.updateNode(node.id, { poiType: (e.target.value || undefined) as PoiType | undefined })}>
+      <Select
+        label="Point of interest"
+        value={node.poiType ?? ''}
+        onChange={(e) =>
+          s.updateNode(node.id, { poiType: (e.target.value || undefined) as PoiType | undefined })
+        }
+      >
         <option value="">None</option>
         {Object.entries(POI_LABELS).map(([k, v]) => (
           <option key={k} value={k}>
@@ -84,7 +102,12 @@ export function Inspector() {
         ))}
       </Select>
       {node.kind === 'door' && (
-        <Toggle label="Leads outside" description="Exterior doors count as exits and don't need a matching room." checked={Boolean(node.exterior)} onChange={(v) => s.updateNode(node.id, { exterior: v })} />
+        <Toggle
+          label="Leads outside"
+          description="Exterior doors count as exits and don't need a matching room."
+          checked={Boolean(node.exterior)}
+          onChange={(v) => s.updateNode(node.id, { exterior: v })}
+        />
       )}
       <fieldset className="flex flex-col gap-2">
         <legend className="font-semibold">
@@ -115,9 +138,14 @@ export function Inspector() {
               <li key={e.id} className="flex items-center justify-between gap-2">
                 <span>
                   {EDGE_LABELS[e.kind]} to {o?.label}
-                  {o && o.floorId !== node.floorId ? ` (${floorName(o.floorId)})` : ''}, {e.length.toFixed(1)} m
+                  {o && o.floorId !== node.floorId ? ` (${floorName(o.floorId)})` : ''}, {e.length.toFixed(1)}{' '}
+                  m
                 </span>
-                <Button variant="ghost" onClick={() => s.disconnect(e.id)} aria-label={`Remove connection to ${o?.label}`}>
+                <Button
+                  variant="ghost"
+                  onClick={() => s.disconnect(e.id)}
+                  aria-label={`Remove connection to ${o?.label}`}
+                >
                   Remove
                 </Button>
               </li>
@@ -150,7 +178,9 @@ export function Inspector() {
           Connect
         </Button>
         {node.kind === 'door' && target && g.nodes.find((n) => n.id === target)?.kind === 'door' && (
-          <Button onClick={() => (s.merge(node.id, target), setTarget(''))}>Snap doors together (same doorway)</Button>
+          <Button onClick={() => (s.merge(node.id, target), setTarget(''))}>
+            Snap doors together (same doorway)
+          </Button>
         )}
       </section>
 

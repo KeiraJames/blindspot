@@ -87,13 +87,33 @@ describe('alignByDoor', () => {
 describe('placeScan + proposeDoorMatches', () => {
   it('stitches two rooms through a shared door and routes across them', () => {
     // Room A: 4x4 with a door on its east wall (x = +2).
-    const a = scan('A', [{ id: 'a1', category: 'door', position: { x: 2, y: 0 }, width: 0.9, normal: 0, confidence: 'high' }]);
-    let g = placeScan(emptyGraph(), a, { floorId: 'f0', name: 'Room A', transform: { theta: 0, tx: 0, ty: 0 } });
+    const a = scan('A', [
+      { id: 'a1', category: 'door', position: { x: 2, y: 0 }, width: 0.9, normal: 0, confidence: 'high' },
+    ]);
+    let g = placeScan(emptyGraph(), a, {
+      floorId: 'f0',
+      name: 'Room A',
+      transform: { theta: 0, tx: 0, ty: 0 },
+    });
 
     // Room B scanned in its own frame (rotated arbitrarily): door on its south wall.
     const b = scan('B', [
-      { id: 'b1', category: 'door', position: { x: 0, y: -2 }, width: 0.92, normal: Math.PI / 2, confidence: 'high' }, // normal wrong way on purpose
-      { id: 'b2', category: 'opening', position: { x: 0, y: 2 }, width: 1.5, normal: Math.PI / 2, confidence: 'medium' },
+      {
+        id: 'b1',
+        category: 'door',
+        position: { x: 0, y: -2 },
+        width: 0.92,
+        normal: Math.PI / 2,
+        confidence: 'high',
+      }, // normal wrong way on purpose
+      {
+        id: 'b2',
+        category: 'opening',
+        position: { x: 0, y: 2 },
+        width: 1.5,
+        normal: Math.PI / 2,
+        confidence: 'medium',
+      },
     ]);
     const candidates = proposeDoorMatches(g, 'f0', b);
     expect(candidates.length).toBeGreaterThan(0);
@@ -132,7 +152,9 @@ describe('placeScan + proposeDoorMatches', () => {
     ]);
     const g = placeScan(emptyGraph(), a, { floorId: 'f0', name: 'A', transform: { theta: 0, tx: 0, ty: 0 } });
     // B's door is in its centre: any alignment pushes half the room into A.
-    const b = scan('B', [{ id: 'b1', category: 'door', position: { x: 0, y: 0 }, width: 0.9, normal: 0, confidence: 'high' }]);
+    const b = scan('B', [
+      { id: 'b1', category: 'door', position: { x: 0, y: 0 }, width: 0.9, normal: 0, confidence: 'high' },
+    ]);
     const c = proposeDoorMatches(g, 'f0', b);
     expect(c[0]!.overlap).toBeGreaterThan(0.2);
   });

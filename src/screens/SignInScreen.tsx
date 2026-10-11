@@ -36,13 +36,21 @@ export function SignInScreen() {
 
   return (
     <Screen title="Welcome to PathSense">
-      <p className="text-lg">Indoor directions you can follow without looking: spoken turns, distinct vibrations and simple swipes.</p>
+      <p className="text-lg">
+        Indoor directions you can follow without looking: spoken turns, distinct vibrations and simple swipes.
+      </p>
 
       {firebaseConfigured && (
         <Card className="flex flex-col gap-4">
           <h2 className="text-xl font-bold">Sign in to share maps</h2>
           {Capacitor.getPlatform() === 'ios' && (
-            <Button variant="primary" large block disabled={busy} onClick={() => run(async () => (await signInWithApple(), finish()))}>
+            <Button
+              variant="primary"
+              large
+              block
+              disabled={busy}
+              onClick={() => run(async () => (await signInWithApple(), finish()))}
+            >
               Sign in with Apple
             </Button>
           )}
@@ -54,7 +62,14 @@ export function SignInScreen() {
                 void run(async () => (await completeEmailLink(pendingLink, email), finish()));
               }}
             >
-              <Field label="Confirm your email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Field
+                label="Confirm your email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
               <Button type="submit" variant="primary" block disabled={busy}>
                 Finish signing in
               </Button>
@@ -69,7 +84,16 @@ export function SignInScreen() {
                 void run(async () => (await sendEmailLink(email), setSent(true)));
               }}
             >
-              <Field label="Email" type="email" autoComplete="email" inputMode="email" required value={email} onChange={(e) => setEmail(e.target.value)} hint="We'll email you a link. No password needed." />
+              <Field
+                label="Email"
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                hint="We'll email you a link. No password needed."
+              />
               <Button type="submit" block disabled={busy || !email}>
                 Email me a sign-in link
               </Button>

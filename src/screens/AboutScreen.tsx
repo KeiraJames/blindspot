@@ -17,14 +17,20 @@ export default function AboutScreen() {
       <Card className="flex flex-col gap-2">
         <h2 className="text-xl font-bold">Privacy</h2>
         <p>The camera and LiDAR are processed on your device. Nothing is uploaded while you navigate.</p>
-        <p>A room scan is uploaded only when you choose to save it to a shared map. Spoken directions are sent as text to our voice service; turn off the natural voice in Settings to keep speech fully on-device.</p>
+        <p>
+          A room scan is uploaded only when you choose to save it to a shared map. Spoken directions are sent
+          as text to our voice service; turn off the natural voice in Settings to keep speech fully on-device.
+        </p>
       </Card>
       <Card className="flex flex-col gap-2">
         <h2 className="text-xl font-bold">How it works</h2>
         <ol className="list-decimal pl-6 flex flex-col gap-1">
           <li>A helper scans each room with a LiDAR iPhone. The app finds doors and stairs.</li>
           <li>In Map Studio, rooms are joined at their doors and floors are stacked.</li>
-          <li>When you navigate, the route is worked out at that moment from the map, so new paths are used right away.</li>
+          <li>
+            When you navigate, the route is worked out at that moment from the map, so new paths are used
+            right away.
+          </li>
         </ol>
       </Card>
       <LinkButton to="/practice" block>

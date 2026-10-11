@@ -36,7 +36,10 @@ export default function ShareScreen() {
     <Screen title="Share" back={`/maps/${mapId}`}>
       {local && (
         <Card>
-          <p>This map is stored on this device only. Sign in from Settings to share maps with a roommate or your campus.</p>
+          <p>
+            This map is stored on this device only. Sign in from Settings to share maps with a roommate or
+            your campus.
+          </p>
         </Card>
       )}
 
@@ -49,11 +52,20 @@ export default function ShareScreen() {
               <span className="font-semibold">{mem.displayName ?? `Member ${mem.uid.slice(0, 6)}`}</span>
               {owner && !local && mem.role !== 'owner' ? (
                 <div className="flex gap-2 items-end">
-                  <Select label={`Role for ${mem.displayName ?? 'member'}`} className="flex-1" value={mem.role} onChange={(e) => setRole.mutate({ uid: mem.uid, role: e.target.value as Role })}>
+                  <Select
+                    label={`Role for ${mem.displayName ?? 'member'}`}
+                    className="flex-1"
+                    value={mem.role}
+                    onChange={(e) => setRole.mutate({ uid: mem.uid, role: e.target.value as Role })}
+                  >
                     <option value="editor">{ROLE_LABELS.editor}</option>
                     <option value="navigator">{ROLE_LABELS.navigator}</option>
                   </Select>
-                  <Button variant="danger" onClick={() => setRole.mutate({ uid: mem.uid, role: null })} aria-label={`Remove ${mem.displayName ?? 'member'}`}>
+                  <Button
+                    variant="danger"
+                    onClick={() => setRole.mutate({ uid: mem.uid, role: null })}
+                    aria-label={`Remove ${mem.displayName ?? 'member'}`}
+                  >
                     Remove
                   </Button>
                 </div>
@@ -89,7 +101,10 @@ export default function ShareScreen() {
           {invite && (
             <div role="status" className="flex flex-col gap-2">
               <p>
-                Invite code: <strong className="text-2xl tracking-widest" aria-label={invite.code.split('').join(' ')}>{invite.code}</strong>
+                Invite code:{' '}
+                <strong className="text-2xl tracking-widest" aria-label={invite.code.split('').join(' ')}>
+                  {invite.code}
+                </strong>
               </p>
               <p className="text-muted text-sm">Expires {new Date(invite.expiresAt).toLocaleDateString()}.</p>
               <Button onClick={() => void share(invite)}>Share code</Button>
@@ -102,7 +117,9 @@ export default function ShareScreen() {
       {!local && owner && (
         <Card className="flex flex-col gap-3">
           <h2 className="text-xl font-bold">Organization</h2>
-          <p className="text-muted">Publish a campus building to your organization so all its members can navigate it.</p>
+          <p className="text-muted">
+            Publish a campus building to your organization so all its members can navigate it.
+          </p>
           <Select
             label="Belongs to"
             value={m.orgId ?? ''}
@@ -116,11 +133,13 @@ export default function ShareScreen() {
             }}
           >
             <option value="">No organization</option>
-            {orgs.data?.filter((o) => o.role !== 'navigator').map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
+            {orgs.data
+              ?.filter((o) => o.role !== 'navigator')
+              .map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
           </Select>
           <form
             className="flex gap-2 items-end"
@@ -131,22 +150,30 @@ export default function ShareScreen() {
               await qc.invalidateQueries();
             }}
           >
-            <Field label="New organization" className="flex-1" value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="e.g. Northside Residence Life" />
+            <Field
+              label="New organization"
+              className="flex-1"
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              placeholder="e.g. Northside Residence Life"
+            />
             <Button type="submit" disabled={!orgName.trim()}>
               Create
             </Button>
           </form>
-          {orgs.data?.filter((o) => o.role === 'owner').map((o) => (
-            <Button
-              key={o.id}
-              onClick={async () => {
-                const inv = await repo.createInvite({ orgId: o.id }, 'navigator');
-                setInvite(inv);
-              }}
-            >
-              Invite navigators to {o.name}
-            </Button>
-          ))}
+          {orgs.data
+            ?.filter((o) => o.role === 'owner')
+            .map((o) => (
+              <Button
+                key={o.id}
+                onClick={async () => {
+                  const inv = await repo.createInvite({ orgId: o.id }, 'navigator');
+                  setInvite(inv);
+                }}
+              >
+                Invite navigators to {o.name}
+              </Button>
+            ))}
         </Card>
       )}
     </Screen>

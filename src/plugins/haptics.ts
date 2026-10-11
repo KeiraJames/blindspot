@@ -15,7 +15,8 @@ class HapticsWeb extends WebPlugin implements HapticsPlugin {
   }
   async play({ pattern }: { pattern: HapticPattern; intensity?: number }) {
     // Development aid only. iOS Safari ignores navigator.vibrate, which is why the app uses Core Haptics.
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(toVibrationPattern(pattern));
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator)
+      navigator.vibrate(toVibrationPattern(pattern));
     if (import.meta.env.DEV) console.debug('[haptics]', pattern.name);
   }
   async stop() {

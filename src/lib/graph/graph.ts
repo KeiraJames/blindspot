@@ -72,7 +72,13 @@ export function connect(graph: MapGraph, fromId: string, toId: string, kind: Edg
     (e) => (e.from === fromId && e.to === toId) || (e.from === toId && e.to === fromId),
   );
   if (exists) return graph;
-  const edge: GraphEdge = { id: newId('e'), from: fromId, to: toId, kind, length: edgeLengthBetween(graph, a, b) };
+  const edge: GraphEdge = {
+    id: newId('e'),
+    from: fromId,
+    to: toId,
+    kind,
+    length: edgeLengthBetween(graph, a, b),
+  };
   return { ...graph, edges: [...graph.edges, edge] };
 }
 
@@ -132,7 +138,10 @@ export function nodeDisplayName(graph: MapGraph, node: GraphNode): string {
 /** Nodes a navigator can pick as a destination. */
 export function destinations(graph: MapGraph): GraphNode[] {
   return graph.nodes
-    .filter((n) => n.kind === 'room' || n.kind === 'poi' || (n.kind === 'door' && n.exterior) || n.kind === 'elevator')
+    .filter(
+      (n) =>
+        n.kind === 'room' || n.kind === 'poi' || (n.kind === 'door' && n.exterior) || n.kind === 'elevator',
+    )
     .filter((n) => n.label.trim().length > 0)
     .sort((a, b) => a.label.localeCompare(b.label));
 }

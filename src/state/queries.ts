@@ -10,7 +10,11 @@ export function useMaps() {
 
 export function useMap(mapId: string | undefined) {
   const repo = useRepo();
-  return useQuery({ queryKey: [repo.kind, 'map', mapId], queryFn: () => repo.getMap(mapId!), enabled: Boolean(mapId) });
+  return useQuery({
+    queryKey: [repo.kind, 'map', mapId],
+    queryFn: () => repo.getMap(mapId!),
+    enabled: Boolean(mapId),
+  });
 }
 
 export function usePublished(mapId: string | undefined) {
@@ -25,22 +29,39 @@ export function usePublished(mapId: string | undefined) {
 
 export function useDraft(mapId: string | undefined) {
   const repo = useRepo();
-  return useQuery({ queryKey: [repo.kind, 'draft', mapId], queryFn: () => repo.getDraft(mapId!), enabled: Boolean(mapId), staleTime: Infinity });
+  return useQuery({
+    queryKey: [repo.kind, 'draft', mapId],
+    queryFn: () => repo.getDraft(mapId!),
+    enabled: Boolean(mapId),
+    staleTime: Infinity,
+  });
 }
 
 export function useVersions(mapId: string | undefined) {
   const repo = useRepo();
-  return useQuery({ queryKey: [repo.kind, 'versions', mapId], queryFn: () => repo.listVersions(mapId!), enabled: Boolean(mapId) });
+  return useQuery({
+    queryKey: [repo.kind, 'versions', mapId],
+    queryFn: () => repo.listVersions(mapId!),
+    enabled: Boolean(mapId),
+  });
 }
 
 export function useScans(mapId: string | undefined) {
   const repo = useRepo();
-  return useQuery({ queryKey: [repo.kind, 'scans', mapId], queryFn: () => repo.listScans(mapId!), enabled: Boolean(mapId) });
+  return useQuery({
+    queryKey: [repo.kind, 'scans', mapId],
+    queryFn: () => repo.listScans(mapId!),
+    enabled: Boolean(mapId),
+  });
 }
 
 export function useMembers(mapId: string | undefined) {
   const repo = useRepo();
-  return useQuery({ queryKey: [repo.kind, 'members', mapId], queryFn: () => repo.listMembers(mapId!), enabled: Boolean(mapId) });
+  return useQuery({
+    queryKey: [repo.kind, 'members', mapId],
+    queryFn: () => repo.listMembers(mapId!),
+    enabled: Boolean(mapId),
+  });
 }
 
 export function useOrgs() {
@@ -52,7 +73,8 @@ export function useCreateMap() {
   const repo = useRepo();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { name: string; description?: string; orgId?: string | null; graph?: MapGraph }) => repo.createMap(input),
+    mutationFn: (input: { name: string; description?: string; orgId?: string | null; graph?: MapGraph }) =>
+      repo.createMap(input),
     onSuccess: () => qc.invalidateQueries({ queryKey: [repo.kind, 'maps'] }),
   });
 }
@@ -61,7 +83,8 @@ export function usePublish(mapId: string) {
   const repo = useRepo();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ graph, note }: { graph: MapGraph; note: string }) => repo.publishVersion(mapId, graph, note),
+    mutationFn: ({ graph, note }: { graph: MapGraph; note: string }) =>
+      repo.publishVersion(mapId, graph, note),
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: [repo.kind, 'versions', mapId] });
       void qc.invalidateQueries({ queryKey: [repo.kind, 'map', mapId] });

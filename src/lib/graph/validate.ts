@@ -92,7 +92,12 @@ export function validateGraph(graph: MapGraph): ValidationResult {
   const ids = new Set<string>();
   for (const n of graph.nodes) {
     if (ids.has(n.id)) {
-      issues.push({ severity: 'error', code: 'duplicate_id', message: `Duplicate id ${n.id}.`, nodeIds: [n.id] });
+      issues.push({
+        severity: 'error',
+        code: 'duplicate_id',
+        message: `Duplicate id ${n.id}.`,
+        nodeIds: [n.id],
+      });
     }
     ids.add(n.id);
     if (!index.floors.has(n.floorId)) {
@@ -118,7 +123,12 @@ export function validateGraph(graph: MapGraph): ValidationResult {
       continue;
     }
     if (!(e.length > 0) || !Number.isFinite(e.length)) {
-      issues.push({ severity: 'error', code: 'bad_length', message: 'A path has an invalid length.', edgeIds: [e.id] });
+      issues.push({
+        severity: 'error',
+        code: 'bad_length',
+        message: 'A path has an invalid length.',
+        edgeIds: [e.id],
+      });
     }
     const vertical = e.kind === 'stairs' || e.kind === 'elevator';
     if (vertical && a.floorId === b.floorId) {

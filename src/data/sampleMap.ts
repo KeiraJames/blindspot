@@ -25,7 +25,12 @@ export function buildSampleMap(): MapGraph {
     n(id, floorId, x, y, 'poi', label, { poiType });
 
   // Ground floor
-  n('g-entrance', 'g', 0, 0, 'door', 'Main entrance', { exterior: true, poiType: 'exit', width: 1.8, normal: -Math.PI / 2 });
+  n('g-entrance', 'g', 0, 0, 'door', 'Main entrance', {
+    exterior: true,
+    poiType: 'exit',
+    width: 1.8,
+    normal: -Math.PI / 2,
+  });
   n('g-lobby', 'g', 0, 5, 'room', 'Lobby');
   poi('g-ra', 'g', -3, 6, 'RA desk', 'ra_desk');
   n('g-j1', 'g', 0, 10, 'junction', 'Lobby hallway');

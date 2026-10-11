@@ -11,7 +11,11 @@ export interface FloorPlanProps {
   highlightIds?: string[];
   /** Extra footprint (e.g. a scan being placed), in map frame. */
   ghost?: { footprint: Vec2[]; doors: Vec2[] } | null;
-  onNodePointerDown?: (node: GraphNode, e: RPointerEvent<SVGElement>, toMap: (clientX: number, clientY: number) => Vec2) => void;
+  onNodePointerDown?: (
+    node: GraphNode,
+    e: RPointerEvent<SVGElement>,
+    toMap: (clientX: number, clientY: number) => Vec2,
+  ) => void;
   onBackgroundPointerDown?: (p: Vec2, e: RPointerEvent<SVGSVGElement>) => void;
   onPointerMove?: (p: Vec2, e: RPointerEvent<SVGSVGElement>) => void;
   onPointerUp?: (p: Vec2, e: RPointerEvent<SVGSVGElement>) => void;
@@ -54,14 +58,23 @@ export function FloorPlan({
   const rooms = graph.rooms.filter((r) => r.floorId === floorId && r.footprint && r.footprint.length >= 3);
 
   const box = useMemo(() => {
-    const pts: Vec2[] = [...nodes.map((n) => n.position), ...rooms.flatMap((r) => r.footprint!), ...(ghost?.footprint ?? [])];
+    const pts: Vec2[] = [
+      ...nodes.map((n) => n.position),
+      ...rooms.flatMap((r) => r.footprint!),
+      ...(ghost?.footprint ?? []),
+    ];
     if (pose) pts.push(pose.position);
     if (pts.length === 0) return { x: -10, y: -10, w: 20, h: 20 };
     const xs = pts.map((p) => p.x);
     const ys = pts.map((p) => -p.y);
     const minX = Math.min(...xs) - padding;
     const minY = Math.min(...ys) - padding;
-    return { x: minX, y: minY, w: Math.max(8, Math.max(...xs) + padding - minX), h: Math.max(8, Math.max(...ys) + padding - minY) };
+    return {
+      x: minX,
+      y: minY,
+      w: Math.max(8, Math.max(...xs) + padding - minX),
+      h: Math.max(8, Math.max(...ys) + padding - minY),
+    };
   }, [nodes, rooms, ghost, pose, padding]);
 
   const edges = graph.edges.filter((e) => {
@@ -71,7 +84,8 @@ export function FloorPlan({
   });
 
   const routeEdges = new Set<string>();
-  if (route) for (let i = 0; i + 1 < route.length; i++) routeEdges.add([route[i], route[i + 1]].sort().join('|'));
+  if (route)
+    for (let i = 0; i + 1 < route.length; i++) routeEdges.add([route[i], route[i + 1]].sort().join('|'));
 
   const scale = Math.max(box.w, box.h) / 40; // label/marker size relative to plan size
   const svgRef = useRef<SVGSVGElement>(null);
@@ -98,7 +112,8 @@ export function FloorPlan({
       aria-hidden={label ? undefined : true}
       style={{ touchAction: 'none' }}
       onPointerDown={(e) => {
-        if (e.target === e.currentTarget || (e.target as Element).getAttribute('data-bg')) onBackgroundPointerDown?.(toMap(e.clientX, e.clientY), e);
+        if (e.target === e.currentTarget || (e.target as Element).getAttribute('data-bg'))
+          onBackgroundPointerDown?.(toMap(e.clientX, e.clientY), e);
       }}
       onPointerMove={(e) => onPointerMove?.(toMap(e.clientX, e.clientY), e)}
       onPointerUp={(e) => onPointerUp?.(toMap(e.clientX, e.clientY), e)}
@@ -114,11 +129,23 @@ export function FloorPlan({
         ))}
       </g>
       {rooms.map((r) => (
-        <polygon key={r.id} points={poly(r.footprint!)} fill="var(--surface-2)" stroke="var(--fg)" strokeWidth={0.08} />
+        <polygon
+          key={r.id}
+          points={poly(r.footprint!)}
+          fill="var(--surface-2)"
+          stroke="var(--fg)"
+          strokeWidth={0.08}
+        />
       ))}
       {ghost && (
         <g opacity={0.8}>
-          <polygon points={poly(ghost.footprint)} fill="none" stroke="var(--accent)" strokeWidth={0.1} strokeDasharray="0.3 0.2" />
+          <polygon
+            points={poly(ghost.footprint)}
+            fill="none"
+            stroke="var(--accent)"
+            strokeWidth={0.1}
+            strokeDasharray="0.3 0.2"
+          />
           {ghost.doors.map((d, i) => (
             <circle key={i} cx={d.x} cy={-d.y} r={0.3} fill="var(--accent)" />
           ))}
@@ -131,7 +158,13 @@ export function FloorPlan({
         if (a.floorId !== b.floorId) {
           const here = a.floorId === floorId ? a : b;
           return (
-            <text key={e.id} x={here.position.x + 0.4} y={-here.position.y - 0.4} fontSize={scale * 1.1} fill="var(--warn)">
+            <text
+              key={e.id}
+              x={here.position.x + 0.4}
+              y={-here.position.y - 0.4}
+              fontSize={scale * 1.1}
+              fill="var(--warn)"
+            >
               {e.kind === 'elevator' ? '⇅' : '↕'}
             </text>
           );
@@ -155,7 +188,13 @@ export function FloorPlan({
         const highlighted = highlightIds.includes(n.id);
         const r = (n.kind === 'room' ? 0.45 : n.kind === 'junction' ? 0.25 : 0.35) * Math.max(1, scale * 0.8);
         return (
-          <g key={n.id} onPointerDown={onNodePointerDown ? (e) => (e.stopPropagation(), onNodePointerDown(n, e, toMap)) : undefined} style={{ cursor: onNodePointerDown ? 'pointer' : undefined }}>
+          <g
+            key={n.id}
+            onPointerDown={
+              onNodePointerDown ? (e) => (e.stopPropagation(), onNodePointerDown(n, e, toMap)) : undefined
+            }
+            style={{ cursor: onNodePointerDown ? 'pointer' : undefined }}
+          >
             <circle cx={n.position.x} cy={-n.position.y} r={r * 2.2} fill="transparent" />
             <circle
               cx={n.position.x}
@@ -166,7 +205,13 @@ export function FloorPlan({
               strokeWidth={selected || highlighted ? 0.15 * Math.max(1, scale) : 0}
             />
             {showLabels && (n.kind !== 'junction' || selected) && (
-              <text x={n.position.x + r + 0.15} y={-n.position.y + r * 0.4} fontSize={scale * 0.9} fill="var(--fg)" style={{ pointerEvents: 'none' }}>
+              <text
+                x={n.position.x + r + 0.15}
+                y={-n.position.y + r * 0.4}
+                fontSize={scale * 0.9}
+                fill="var(--fg)"
+                style={{ pointerEvents: 'none' }}
+              >
                 {n.label}
               </text>
             )}
@@ -174,8 +219,15 @@ export function FloorPlan({
         );
       })}
       {pose && (
-        <g transform={`translate(${pose.position.x} ${-pose.position.y}) rotate(${(-pose.heading * 180) / Math.PI})`}>
-          <circle r={0.6 * Math.max(1, scale * 0.8)} fill="var(--danger)" stroke="var(--fg)" strokeWidth={0.1} />
+        <g
+          transform={`translate(${pose.position.x} ${-pose.position.y}) rotate(${(-pose.heading * 180) / Math.PI})`}
+        >
+          <circle
+            r={0.6 * Math.max(1, scale * 0.8)}
+            fill="var(--danger)"
+            stroke="var(--fg)"
+            strokeWidth={0.1}
+          />
           <path d={`M 0 0 L ${1.6 * Math.max(1, scale * 0.8)} 0`} stroke="var(--fg)" strokeWidth={0.2} />
         </g>
       )}

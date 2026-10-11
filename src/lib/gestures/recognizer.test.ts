@@ -16,7 +16,8 @@ describe('GestureRecognizer', () => {
 
   const swipe = (dx: number, dy: number, fingers = 1, t0 = 0) => {
     for (let f = 0; f < fingers; f++) r.down({ id: f, x: 100 + f * 40, y: 300, t: t0 });
-    for (let f = 0; f < fingers; f++) r.move({ id: f, x: 100 + f * 40 + dx / 2, y: 300 + dy / 2, t: t0 + 80 });
+    for (let f = 0; f < fingers; f++)
+      r.move({ id: f, x: 100 + f * 40 + dx / 2, y: 300 + dy / 2, t: t0 + 80 });
     for (let f = 0; f < fingers; f++) r.up({ id: f, x: 100 + f * 40 + dx, y: 300 + dy, t: t0 + 160 });
   };
 

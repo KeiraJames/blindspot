@@ -5,14 +5,7 @@ import type { EdgeKind } from '../graph/types';
 import { formatDistance, type DistanceUnit } from './units';
 
 export type TurnDirection =
-  | 'straight'
-  | 'slight_left'
-  | 'left'
-  | 'sharp_left'
-  | 'slight_right'
-  | 'right'
-  | 'sharp_right'
-  | 'u_turn';
+  'straight' | 'slight_left' | 'left' | 'sharp_left' | 'slight_right' | 'right' | 'sharp_right' | 'u_turn';
 
 /** Classify a signed turn angle (radians, positive = left). */
 export function classifyTurn(angle: number): TurnDirection {
@@ -62,7 +55,12 @@ export interface RouteStep {
   nodeIndex: number;
   nodeId: string;
   turn?: TurnDirection;
-  floorChange?: { via: Extract<EdgeKind, 'stairs' | 'elevator' | 'ramp'>; direction: 'up' | 'down'; floors: number; toFloorName: string };
+  floorChange?: {
+    via: Extract<EdgeKind, 'stairs' | 'elevator' | 'ramp'>;
+    direction: 'up' | 'down';
+    floors: number;
+    toFloorName: string;
+  };
   /** Meters to walk after this maneuver until the next one. */
   distanceAfter: number;
   /** Doors passed during the walk after this maneuver. `through` = a doorway joining two rooms. */
@@ -85,7 +83,15 @@ export function buildSteps(index: GraphIndex, route: Route): RouteStep[] {
   const steps: RouteStep[] = [];
 
   const open = (kind: StepKind, i: number, extra: Partial<RouteStep> = {}): RouteStep => {
-    const s: RouteStep = { kind, nodeIndex: i, nodeId: ids[i]!, distanceAfter: 0, landmarks: [], towardLabel: '', ...extra };
+    const s: RouteStep = {
+      kind,
+      nodeIndex: i,
+      nodeId: ids[i]!,
+      distanceAfter: 0,
+      landmarks: [],
+      towardLabel: '',
+      ...extra,
+    };
     steps.push(s);
     return s;
   };
@@ -117,7 +123,8 @@ export function buildSteps(index: GraphIndex, route: Route): RouteStep[] {
 
     current.distanceAfter += edge.length;
     // Doors passed along the way are landmarks; the destination itself is not.
-    if (b.kind === 'door' && i + 1 < ids.length - 1) current.landmarks.push({ label: b.label, through: (b.roomIds?.length ?? 0) >= 2 });
+    if (b.kind === 'door' && i + 1 < ids.length - 1)
+      current.landmarks.push({ label: b.label, through: (b.roomIds?.length ?? 0) >= 2 });
 
     if (i + 1 === ids.length - 1) {
       current.towardLabel = b.label;
@@ -174,7 +181,8 @@ export function stepText(step: RouteStep, opts: PhraseOptions, destinationLabel?
     }
     case 'floor_change': {
       const fc = step.floorChange!;
-      const how = fc.via === 'elevator' ? 'Take the elevator' : fc.via === 'ramp' ? 'Take the ramp' : 'Take the stairs';
+      const how =
+        fc.via === 'elevator' ? 'Take the elevator' : fc.via === 'ramp' ? 'Take the ramp' : 'Take the stairs';
       const n = fc.floors > 1 ? ` ${fc.floors} floors` : '';
       return `${how} ${fc.direction}${n} to ${fc.toFloorName}.`;
     }
@@ -217,7 +225,12 @@ export function nowText(step: RouteStep, opts: PhraseOptions): string {
   }
 }
 
-export function routeSummary(steps: RouteStep[], route: Route, opts: PhraseOptions, destination: string): string {
+export function routeSummary(
+  steps: RouteStep[],
+  route: Route,
+  opts: PhraseOptions,
+  destination: string,
+): string {
   const turns = steps.filter((s) => s.kind === 'turn').length;
   const floors = steps.filter((s) => s.kind === 'floor_change').length;
   const parts = [`Route to ${destination}: ${formatDistance(route.length, opts.unit, opts.stepLength)}`];

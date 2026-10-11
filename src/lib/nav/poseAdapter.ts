@@ -60,12 +60,17 @@ export class PoseAdapter {
   recenter(pose: ARPose, position: Vec2) {
     if (!this.transform) return;
     const now = applyTransform(this.transform, arToLocal(pose));
-    this.transform = { ...this.transform, tx: this.transform.tx + position.x - now.x, ty: this.transform.ty + position.y - now.y };
+    this.transform = {
+      ...this.transform,
+      tx: this.transform.tx + position.x - now.x,
+      ty: this.transform.ty + position.y - now.y,
+    };
   }
 
   floorFor(elevation: number): Floor {
     let best = this.graph.floors[0]!;
-    for (const f of this.graph.floors) if (Math.abs(f.elevation - elevation) < Math.abs(best.elevation - elevation)) best = f;
+    for (const f of this.graph.floors)
+      if (Math.abs(f.elevation - elevation) < Math.abs(best.elevation - elevation)) best = f;
     return best;
   }
 

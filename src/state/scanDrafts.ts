@@ -48,7 +48,10 @@ export async function processQueue() {
   if (running) return;
   running = true;
   try {
-    const status = await Network.getStatus().catch(() => ({ connected: navigator.onLine, connectionType: 'unknown' as const }));
+    const status = await Network.getStatus().catch(() => ({
+      connected: navigator.onLine,
+      connectionType: 'unknown' as const,
+    }));
     if (!status.connected) return;
     const wifiOnly = useSettings.getState().wifiOnlyUploads;
     const repo = getRepo(useSession.getState().mode);
@@ -58,9 +61,14 @@ export async function processQueue() {
     for (const d of store.drafts.filter((x) => x.status === 'draft' && x.mapId)) {
       try {
         await store.save({ ...d, status: 'uploading' });
-        const saved = await repo.saveScan(d.mapId!, d, (f) => useScanDrafts.setState((s) => ({ progress: { ...s.progress, [d.id]: f } })));
+        const saved = await repo.saveScan(d.mapId!, d, (f) =>
+          useScanDrafts.setState((s) => ({ progress: { ...s.progress, [d.id]: f } })),
+        );
         await idb.set('scans', d.id, saved);
-        useScanDrafts.setState((s) => ({ drafts: s.drafts.map((x) => (x.id === d.id ? saved : x)), errors: { ...s.errors, [d.id]: '' } }));
+        useScanDrafts.setState((s) => ({
+          drafts: s.drafts.map((x) => (x.id === d.id ? saved : x)),
+          errors: { ...s.errors, [d.id]: '' },
+        }));
       } catch (e) {
         await idb.set('scans', d.id, { ...d, status: 'draft' });
         useScanDrafts.setState((s) => ({

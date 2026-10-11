@@ -9,7 +9,8 @@ import type { GraphEdge, GraphNode, MapGraph, Room, Transform2D, Vec2 } from './
  * rotation is undefined and `fallbackTheta` is used.
  */
 export function umeyama2D(src: Vec2[], dst: Vec2[], fallbackTheta = 0): Transform2D & { rms: number } {
-  if (src.length !== dst.length || src.length === 0) throw new Error('umeyama2D needs matching non-empty sets');
+  if (src.length !== dst.length || src.length === 0)
+    throw new Error('umeyama2D needs matching non-empty sets');
   const n = src.length;
   const ms = { x: 0, y: 0 };
   const md = { x: 0, y: 0 };
@@ -48,11 +49,20 @@ export function umeyama2D(src: Vec2[], dst: Vec2[], fallbackTheta = 0): Transfor
  * Transform that places a new scan so its door B meets an existing door A face to face:
  * the two door positions coincide and B's outward normal points opposite A's.
  */
-export function alignByDoor(placedPos: Vec2, placedNormal: number, scanPos: Vec2, scanNormal: number): Transform2D {
+export function alignByDoor(
+  placedPos: Vec2,
+  placedNormal: number,
+  scanPos: Vec2,
+  scanNormal: number,
+): Transform2D {
   const theta = wrapAngle(placedNormal + Math.PI - scanNormal);
   const c = Math.cos(theta);
   const s = Math.sin(theta);
-  return { theta, tx: placedPos.x - (c * scanPos.x - s * scanPos.y), ty: placedPos.y - (s * scanPos.x + c * scanPos.y) };
+  return {
+    theta,
+    tx: placedPos.x - (c * scanPos.x - s * scanPos.y),
+    ty: placedPos.y - (s * scanPos.x + c * scanPos.y),
+  };
 }
 
 /** Make every opening normal point away from the room interior. */
@@ -123,7 +133,9 @@ export function proposeDoorMatches(graph: MapGraph, floorId: string, scan: ScanR
   const placedDoors = graph.nodes.filter(
     (n) => n.floorId === floorId && n.kind === 'door' && !n.exterior && (n.roomIds?.length ?? 0) < 2,
   );
-  const existingFootprints = graph.rooms.filter((r) => r.floorId === floorId && r.footprint).map((r) => r.footprint!);
+  const existingFootprints = graph.rooms
+    .filter((r) => r.floorId === floorId && r.footprint)
+    .map((r) => r.footprint!);
   const normalized = normalizeOpeningNormals(scan);
   const out: DoorMatchCandidate[] = [];
 
@@ -213,7 +225,13 @@ export function placeScan(graph: MapGraph, scanIn: ScanResult, opts: PlaceScanOp
     };
     openingNode.set(o.id, node.id);
     nodes.push(node);
-    edges.push({ id: newId('e'), from: roomNode.id, to: node.id, kind: 'walk', length: Math.max(0.01, dist(center, pos)) });
+    edges.push({
+      id: newId('e'),
+      from: roomNode.id,
+      to: node.id,
+      kind: 'walk',
+      length: Math.max(0.01, dist(center, pos)),
+    });
   });
 
   scan.stairs.forEach((s, i) => {
@@ -229,7 +247,13 @@ export function placeScan(graph: MapGraph, scanIn: ScanResult, opts: PlaceScanOp
       scanId: scan.scanId,
     };
     nodes.push(node);
-    edges.push({ id: newId('e'), from: roomNode.id, to: node.id, kind: 'walk', length: Math.max(0.01, dist(center, pos)) });
+    edges.push({
+      id: newId('e'),
+      from: roomNode.id,
+      to: node.id,
+      kind: 'walk',
+      length: Math.max(0.01, dist(center, pos)),
+    });
   });
 
   let next: MapGraph = {

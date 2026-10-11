@@ -43,7 +43,8 @@ export async function signInWithApple(): Promise<User> {
 export async function sendEmailLink(email: string): Promise<void> {
   const fb = firebase();
   if (!fb) throw new Error('Firebase is not configured');
-  const url = import.meta.env.VITE_EMAIL_LINK_URL || `https://${import.meta.env.VITE_FIREBASE_AUTH_DOMAIN}/signin`;
+  const url =
+    import.meta.env.VITE_EMAIL_LINK_URL || `https://${import.meta.env.VITE_FIREBASE_AUTH_DOMAIN}/signin`;
   await sendSignInLinkToEmail(fb.auth, email, {
     url,
     handleCodeInApp: true,
