@@ -95,6 +95,11 @@ function Navigator({
   const roomList = places.map((p) => p.label).join(', ');
 
   useEffect(() => controller.subscribe(setState), [controller]);
+  // Warm the natural-voice cache with this route's sentences before they're needed.
+  useEffect(() => {
+    const phrase = { unit: settings.units, stepLength: settings.stepLength };
+    voice.prefetch(state.steps.map((st) => stepText(st, phrase, controller.label(state.destinationId))));
+  }, [state.steps]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => controller.updateOptions(navOptions(settings)), [controller, settings]);
 
   useEffect(() => {

@@ -21,6 +21,7 @@ interface PlaceState {
   addRoom: (scan: ScanResult, name: string) => Promise<{ roomId: string; joinedTo: string[] }>;
   renameRoom: (roomId: string, name: string) => Promise<void>;
   deleteRoom: (roomId: string) => Promise<void>;
+  deleteAll: () => Promise<void>;
 }
 
 const KEY = 'my-place';
@@ -56,6 +57,11 @@ export const usePlace = create<PlaceState>((set, get) => ({
     const scans = { ...place.scans };
     if (room?.scanId) delete scans[room.scanId];
     const next = { graph: deleteRoom(place.graph, roomId), scans };
+    set({ place: next });
+    await persist(next);
+  },
+  deleteAll: async () => {
+    const next = { graph: emptyPlace(), scans: {} };
     set({ place: next });
     await persist(next);
   },

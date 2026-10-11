@@ -9,7 +9,7 @@ Indoor navigation for blind and low-vision people, on iPhone. Scan a room with t
 1. **Add a room.** Stand in the doorway and press Start scanning. Walk slowly along the walls (the phone coaches you out loud). When the scan finishes, the phone asks "What is this room called?". Say the name after the tone, hear it read back, and press Save. Rooms scanned one after another through a shared doorway connect automatically.
 2. **Go somewhere.** Press the big button and say where you are, then say where you want to go. The route is read out. Press Start and walk; each turn is announced before you reach it.
 3. **While walking,** press Speak and say *where am I*, *repeat*, *pause*, *resume*, *stop*, or another room's name to go there instead. You can also tap the screen to hear where you are, swipe up to repeat, and touch and hold to pause.
-4. **My rooms.** Hear your rooms, rename one by voice, or delete it.
+4. **My rooms.** Hear your rooms, rename one by voice, delete one, or delete them all (each asks you to confirm).
 
 Everything is spoken, so the app works without looking at it. With VoiceOver on, the app lets VoiceOver read the screens and only speaks navigation prompts and answers itself. All data stays on the phone.
 
@@ -19,6 +19,8 @@ Until you scan your first room, a practice map is loaded so you can try navigati
 - **Home:** Kitchen, Bedroom, Bathroom and Closet.
 
 **Practice scan:** on the Add a room screen, *Practice first* runs a pretend scan with spoken coaching, then asks for the room's name, so you can learn the steps on any phone (or the Simulator). Nothing is saved.
+
+**Natural voice (optional):** with an ElevenLabs key, directions are spoken by an ElevenLabs voice (cached on the phone, so repeats are instant and free). Put the key in `.env.local` (git-ignored; see `.env.example`), then run `npm run ios:sync`. The key is built into that app copy, so keep such builds on your own devices. Voice Library voices need a paid ElevenLabs plan; on a free plan the app uses the built-in voice "Sarah" instead. Offline or on any error, the iPhone voice speaks, so no direction is ever dropped. When the natural voice is on, direction text is sent to ElevenLabs.
 
 The voice speaks slower than the iOS default, with a short pause between sentences; *Settings → Speaking speed* plays a sample as you change it. *How to use* explains everything in short, simple sentences, each with a Listen button.
 

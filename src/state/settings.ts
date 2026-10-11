@@ -10,6 +10,8 @@ export interface Settings {
   safetyAcknowledged: boolean;
   /** Multiplier on the system speaking rate: 0.4 (very slow) … 1.4 (fast). */
   speechRate: number;
+  /** ElevenLabs voice when available (falls back to the built-in voice automatically). */
+  naturalVoice: boolean;
   vibration: boolean;
   /** Short sounds that pair with each vibration. */
   sounds: boolean;
@@ -29,6 +31,7 @@ const DEFAULTS = {
   safetyAcknowledged: false,
   // Slower than the iOS default: easier to follow while walking.
   speechRate: 0.75,
+  naturalVoice: true,
   vibration: true,
   sounds: true,
   units: 'meters' as DistanceUnit,
@@ -60,6 +63,7 @@ export const useSettings = create<Settings>()(
             typeof o.speechRate === 'number' && o.speechRate < 1 ? o.speechRate : DEFAULTS.speechRate,
           units: (o.units as DistanceUnit) ?? DEFAULTS.units,
           highContrast: Boolean(o.highContrast),
+          ...(typeof o.naturalVoice === 'boolean' ? { naturalVoice: o.naturalVoice } : {}),
           ...(o.sample === 'home' || o.sample === 'hall' ? { sample: o.sample } : {}),
           ...(typeof o.vibration === 'boolean' ? { vibration: o.vibration } : {}),
           ...(typeof o.sounds === 'boolean' ? { sounds: o.sounds } : {}),

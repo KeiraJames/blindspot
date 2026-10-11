@@ -1,10 +1,13 @@
 import { Speech } from '../../plugins/speech';
+import { elevenLabsReady, getClip } from './elevenlabs';
 
 export type Priority = 'low' | 'normal' | 'high';
 
 export interface VoiceSettings {
   enabled: boolean;
   rate: number;
+  /** Use the ElevenLabs voice when available; otherwise the built-in iOS voice. */
+  natural: boolean;
 }
 
 interface Utterance {
@@ -14,14 +17,20 @@ interface Utterance {
 }
 
 /**
- * The guide voice: the built-in iOS voice (AVSpeechSynthesizer), so it works offline and
- * starts instantly. Prompts are queued; a high-priority prompt (hazard, arrival) drops the
- * queue and interrupts, and low-priority hints are skipped when something else is talking.
+ * The guide voice. Prompts are queued; a high-priority prompt (hazard, arrival) drops the queue
+ * and interrupts, and low-priority hints are skipped when something else is talking.
+ *
+ * With the natural voice on, each prompt is played from ElevenLabs (cached on the phone). If a
+ * clip isn't ready quickly — offline, slow network, no key — the built-in iOS voice speaks
+ * instead, so a direction is never late or dropped.
  */
 export class VoiceGuide {
   private queue: Utterance[] = [];
   private speaking: Utterance | null = null;
+  private audio: HTMLAudioElement | null = null;
   private lastSpoken = '';
+  /** How long to wait for an ElevenLabs clip before using the built-in voice. */
+  latencyBudgetMs = 1500;
 
   constructor(private settings: VoiceSettings) {}
 
@@ -44,7 +53,7 @@ export class VoiceGuide {
       if (priority === 'high') {
         this.queue.forEach((q) => q.resolve());
         this.queue = [u];
-        void Speech.stop();
+        this.interrupt();
       } else {
         if (priority === 'low' && this.busy) return resolve();
         if (this.queue.at(-1)?.text === text || this.speaking?.text === text) return resolve();
@@ -52,6 +61,12 @@ export class VoiceGuide {
       }
       void this.pump();
     });
+  }
+
+  /** Start fetching clips for prompts that will be spoken soon. */
+  prefetch(texts: string[]) {
+    if (!this.settings.natural || !elevenLabsReady()) return;
+    for (const t of texts) void getClip(t, this.settings.rate);
   }
 
   repeat() {
@@ -62,6 +77,14 @@ export class VoiceGuide {
   stop() {
     this.queue.forEach((q) => q.resolve());
     this.queue = [];
+    this.interrupt();
+  }
+
+  private interrupt() {
+    if (this.audio) {
+      this.audio.pause();
+      this.audio.dispatchEvent(new Event('ended'));
+    }
     void Speech.stop();
   }
 
@@ -72,13 +95,40 @@ export class VoiceGuide {
     this.speaking = next;
     this.lastSpoken = next.text;
     try {
-      await Speech.speak({ text: next.text, rate: this.settings.rate });
+      let clip: Blob | null = null;
+      if (this.settings.natural && elevenLabsReady()) {
+        // Hazards can't wait for the network; only an already-cached clip is fast enough.
+        const budget = next.priority === 'high' ? 150 : this.latencyBudgetMs;
+        clip = await Promise.race([
+          getClip(next.text, this.settings.rate),
+          new Promise<null>((r) => setTimeout(() => r(null), budget)),
+        ]);
+      }
+      if (this.speaking !== next) return; // interrupted while waiting
+      if (clip) await this.play(clip);
+      else await Speech.speak({ text: next.text, rate: this.settings.rate });
     } catch {
       /* speech unavailable: the live region still shows the text */
     } finally {
       next.resolve();
-      this.speaking = null;
+      if (this.speaking === next) this.speaking = null;
       void this.pump();
     }
+  }
+
+  private play(blob: Blob): Promise<void> {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(blob);
+      const el = new Audio(url);
+      this.audio = el;
+      const done = () => {
+        URL.revokeObjectURL(url);
+        if (this.audio === el) this.audio = null;
+        resolve();
+      };
+      el.addEventListener('ended', done, { once: true });
+      el.addEventListener('error', done, { once: true });
+      el.play().catch(done);
+    });
   }
 }

@@ -14,13 +14,14 @@ export default function RoomsScreen() {
   const graph = usePlace((s) => s.place.graph);
   const renameRoom = usePlace((s) => s.renameRoom);
   const deleteRoom = usePlace((s) => s.deleteRoom);
+  const deleteAll = usePlace((s) => s.deleteAll);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const summary =
     graph.rooms.length === 0
-      ? 'You have no rooms yet. Until you add one, Go somewhere uses the sample home.'
+      ? 'You have no rooms yet. Until you add one, Go somewhere uses a practice map. Only rooms you scanned can be renamed or deleted.'
       : `You have ${graph.rooms.length} ${graph.rooms.length === 1 ? 'room' : 'rooms'}: ${graph.rooms.map((r) => r.name).join(', ')}.`;
 
   useEffect(() => {
@@ -115,13 +116,14 @@ export default function RoomsScreen() {
                         void cue('cancel', `${room.name} deleted.`);
                       }}
                     >
-                      Confirm
+                      Yes, delete
                     </Button>
                   ) : (
                     <Button
+                      variant="danger"
                       onClick={() => {
                         setConfirmDelete(room.id);
-                        void say(`Delete ${room.name}? Press Confirm to delete it.`);
+                        void say(`Delete ${room.name}? Press Yes, delete to remove it.`);
                       }}
                       aria-label={`Delete ${room.name}`}
                     >
@@ -138,6 +140,41 @@ export default function RoomsScreen() {
       <LinkButton to="/scan" variant={graph.rooms.length ? 'secondary' : 'primary'} large block>
         Add a room
       </LinkButton>
+
+      {graph.rooms.length > 0 &&
+        (confirmDelete === 'all' ? (
+          <Card className="flex flex-col gap-2">
+            <p className="text-lg font-semibold">
+              Delete all {graph.rooms.length} rooms? This can't be undone.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="danger"
+                onClick={async () => {
+                  await deleteAll();
+                  setConfirmDelete(null);
+                  void cue('cancel', 'All your rooms are deleted. The practice map is back.');
+                }}
+              >
+                Yes, delete all
+              </Button>
+              <Button onClick={() => (setConfirmDelete(null), void say('Nothing was deleted.'))}>
+                Keep them
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <Button
+            variant="danger"
+            block
+            onClick={() => {
+              setConfirmDelete('all');
+              void say(`Delete all ${graph.rooms.length} rooms? Press Yes, delete all. Or press Keep them.`);
+            }}
+          >
+            Delete all my rooms
+          </Button>
+        ))}
     </Screen>
   );
 }

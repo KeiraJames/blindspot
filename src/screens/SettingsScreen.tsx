@@ -2,6 +2,7 @@ import { Screen } from '../components/Screen';
 import { Button, Card, Select, Slider, Toggle } from '../components/ui';
 import { cue, say, voice } from '../lib/feedback';
 import type { DistanceUnit } from '../lib/nav/units';
+import { elevenLabsConfigured } from '../lib/voice/elevenlabs';
 import { useSettings } from '../state/settings';
 
 const SAMPLE = 'In 5 meters, turn left. Then walk through the door to the kitchen.';
@@ -37,6 +38,22 @@ export default function SettingsScreen() {
           format={speedLabel}
         />
         <Button onClick={() => void say(SAMPLE)}>Hear a sample</Button>
+        {elevenLabsConfigured ? (
+          <Toggle
+            label="Natural voice"
+            description="Uses the ElevenLabs voice. Directions are sent as text to ElevenLabs. Without internet, the iPhone voice is used."
+            checked={s.naturalVoice}
+            onChange={(v) => {
+              s.set({ naturalVoice: v });
+              voice.stop();
+              setTimeout(() => void say(v ? 'This is the natural voice.' : 'This is the iPhone voice.'), 100);
+            }}
+          />
+        ) : (
+          <p className="text-muted text-sm">
+            Natural voice: not set up. Add an ElevenLabs key to .env.local.
+          </p>
+        )}
         <Select
           label="Say distances in"
           value={s.units}
