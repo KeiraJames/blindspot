@@ -6,7 +6,7 @@ import jsxA11y from 'eslint-plugin-jsx-a11y';
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'ios', 'functions/lib', 'functions/node_modules', 'node_modules', 'coverage', 'native'],
+    ignores: ['dist', 'ios', 'node_modules', 'coverage', 'native'],
   },
   {
     files: ['**/*.{ts,tsx}'],

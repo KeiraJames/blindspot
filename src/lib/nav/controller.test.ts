@@ -12,7 +12,6 @@ function make() {
       if (speech) said.push(speech);
     },
     say: (t) => said.push(t),
-    prefetch: () => undefined,
     repeat: () => said.push('<repeat>'),
     stopSpeech: () => undefined,
   };
@@ -26,7 +25,7 @@ describe('NavigationController', () => {
     c.setStart('g-entrance');
     c.setDestination('g-kit');
     expect(c.state.phase).toBe('preview');
-    expect(said.at(-1)).toMatch(/^Route to Kitchen, Ground floor: .*Double-tap to start\.$/);
+    expect(said.at(-1)).toMatch(/^Route to Kitchen, Ground floor: .*Press Start when you're ready\.$/);
   });
 
   it('finds destinations by spoken text', () => {
@@ -126,5 +125,24 @@ describe('NavigationController', () => {
     const hazards = said.filter((s) => s.startsWith('Caution'));
     expect(hazards).toEqual(['Caution. Obstacle ahead, 1 meter.']);
     expect(said.join(' ')).not.toMatch(/clear|no obstacles/i);
+  });
+
+  it('changes destination mid-walk from the current position', () => {
+    const { c, said } = make();
+    c.setStart('g-entrance', false);
+    c.setDestination('g-kit');
+    c.begin();
+    c.onPose({
+      floorId: 'g',
+      position: { x: 0, y: 9.5 },
+      heading: Math.PI / 2,
+      tracking: 'normal',
+      timestamp: 0,
+    });
+    c.goTo('g-101');
+    expect(c.state.destinationId).toBe('g-101');
+    expect(c.state.phase).toBe('guiding');
+    expect(c.state.route!.nodeIds[0]).toBe('g-j1');
+    expect(said.at(-1)).toMatch(/^Going to Room 101, Ground floor instead\. New route\./);
   });
 });

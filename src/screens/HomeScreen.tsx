@@ -1,185 +1,53 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect } from 'react';
 import { PixelArt } from '../components/PixelArt';
 import { Screen } from '../components/Screen';
-import { SAMPLE_MAP_ID } from '../data/sampleHome';
-import { Button, Card, ErrorBox, Field, LinkButton, Select, Spinner } from '../components/ui';
-import { ROLE_LABELS } from '../firebase/repo';
-import { useCreateMap, useMaps, useOrgs } from '../state/queries';
-import { useRepo } from '../state/session';
+import { LinkButton } from '../components/ui';
+import { announce } from '../lib/feedback';
+import { useActiveMap } from '../state/place';
+
+let introduced = false;
 
 export function HomeScreen() {
-  const maps = useMaps();
-  const orgs = useOrgs();
-  const repo = useRepo();
-  const navigate = useNavigate();
-  const qc = useQueryClient();
-  const createMap = useCreateMap();
-  const [params, setParams] = useSearchParams();
-  const [name, setName] = useState('');
-  const [orgId, setOrgId] = useState('');
-  const [code, setCode] = useState(params.get('invite') ?? '');
-  const [joinError, setJoinError] = useState<unknown>(null);
-  const [showNew, setShowNew] = useState(false);
+  const { graph, isSample } = useActiveMap();
+  const status = isSample
+    ? 'You have no rooms yet, so a sample home is loaded. Add a room to start your own map.'
+    : `Your home has ${graph.rooms.length} ${graph.rooms.length === 1 ? 'room' : 'rooms'}.`;
 
   useEffect(() => {
-    if (params.get('invite')) setParams({}, { replace: true });
-  }, [params, setParams]);
+    // Speak the menu once per launch, not every time you come back.
+    if (introduced) return;
+    introduced = true;
+    void announce(`PathSense. ${status} Choose Go somewhere, Add a room, My rooms, Settings, or Help.`);
+  }, [status]);
 
   return (
-    <Screen
-      title="Your maps"
-      actions={
-        <Link
-          to="/settings"
-          className="min-h-12 min-w-12 flex items-center justify-center rounded-xl font-semibold text-accent"
-        >
-          Settings
-        </Link>
-      }
-    >
+    <Screen title="PathSense">
       <div className="pixel-frame bg-surface-2 p-4 flex items-center gap-4">
-        <PixelArt name="house" size={72} />
-        <div>
-          <p className="font-pixel text-2xl font-bold">PathSense</p>
-          <p className="text-muted">Indoor directions you can follow without looking.</p>
-        </div>
-        <PixelArt name="sparkle" size={28} className="ml-auto self-start" />
+        <PixelArt name="house" size={56} />
+        <p className="text-lg">{status}</p>
       </div>
-      {maps.isLoading && <Spinner label="Loading maps" />}
-      <ErrorBox error={maps.error} />
-      <ul className="flex flex-col gap-3" aria-label="Maps">
-        {maps.data?.map((m) => (
-          <Card as="li" key={m.id} className="flex flex-col gap-3">
-            <div>
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <PixelArt name="house" size={28} />
-                {m.name}
-              </h2>
-              <p className="text-muted text-sm">
-                {ROLE_LABELS[m.role]}
-                {m.latestVersion ? ` · version ${m.latestVersion}` : ' · not published yet'}
-                {m.orgId ? ' · organization map' : ''}
-              </p>
-            </div>
-            {m.id === SAMPLE_MAP_ID && (
-              <ul className="grid grid-cols-4 gap-2" aria-label="Places in the sample home">
-                {(['kitchen', 'bedroom', 'bathroom', 'closet'] as const).map((room) => (
-                  <li
-                    key={room}
-                    className="flex flex-col items-center gap-1 bg-surface-2 border-[3px] border-line px-1 py-2 min-w-0"
-                  >
-                    <PixelArt name={room} size={40} />
-                    <span className="font-pixel text-xs capitalize">{room}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="grid grid-cols-2 gap-2">
-              <LinkButton
-                to={`/maps/${m.id}/navigate`}
-                variant="primary"
-                aria-label={`Navigate in ${m.name}`}
-                aria-disabled={!m.latestVersion}
-                onClick={(e) => !m.latestVersion && e.preventDefault()}
-              >
-                Navigate
-              </LinkButton>
-              <LinkButton to={`/maps/${m.id}`} aria-label={`Open ${m.name}`}>
-                Open
-              </LinkButton>
-            </div>
-          </Card>
-        ))}
-      </ul>
-      {maps.data?.length === 0 && (
-        <p className="text-muted">
-          No maps yet. Create one, or join with a code from someone who shared a map.
-        </p>
-      )}
 
-      {showNew ? (
-        <Card>
-          <form
-            className="flex flex-col gap-3"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const id = await createMap.mutateAsync({ name: name.trim(), orgId: orgId || null });
-              navigate(`/maps/${id}`);
-            }}
-          >
-            <h2 className="text-xl font-bold">New map</h2>
-            <Field
-              label="Building or home name"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. My apartment"
-            />
-            {(orgs.data?.length ?? 0) > 0 && (
-              <Select label="Owner" value={orgId} onChange={(e) => setOrgId(e.target.value)}>
-                <option value="">Just me</option>
-                {orgs
-                  .data!.filter((o) => o.role !== 'navigator')
-                  .map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.name}
-                    </option>
-                  ))}
-              </Select>
-            )}
-            <div className="grid grid-cols-2 gap-2">
-              <Button type="submit" variant="primary" disabled={!name.trim() || createMap.isPending}>
-                Create
-              </Button>
-              <Button onClick={() => setShowNew(false)}>Cancel</Button>
-            </div>
-            <ErrorBox error={createMap.error} />
-          </form>
-        </Card>
-      ) : (
-        <Button variant="secondary" large block onClick={() => setShowNew(true)}>
-          New map
-        </Button>
-      )}
-
-      {repo.kind === 'firebase' && (
-        <Card>
-          <form
-            className="flex flex-col gap-3"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setJoinError(null);
-              try {
-                const res = await repo.acceptInvite(code);
-                await qc.invalidateQueries();
-                setCode('');
-                if (res.mapId) navigate(`/maps/${res.mapId}`);
-              } catch (err) {
-                setJoinError(err);
-              }
-            }}
-          >
-            <h2 className="text-xl font-bold">Join a shared map</h2>
-            <Field
-              label="Invite code"
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              autoCapitalize="characters"
-              autoComplete="off"
-            />
-            <Button type="submit" disabled={code.trim().length < 6}>
-              Join
-            </Button>
-            <ErrorBox error={joinError} />
-          </form>
-        </Card>
-      )}
-
-      <nav aria-label="More" className="grid grid-cols-2 gap-2">
-        <LinkButton to="/practice">Practice gestures</LinkButton>
-        <LinkButton to="/about">Safety and help</LinkButton>
+      <nav aria-label="Main menu" className="flex flex-col gap-4">
+        <LinkButton to="/go" variant="primary" block className="min-h-28 text-2xl gap-4">
+          <PixelArt name="arrow" size={40} />
+          Go somewhere
+        </LinkButton>
+        <LinkButton to="/scan" block className="min-h-24 text-2xl gap-4">
+          <PixelArt name="sparkle" size={36} />
+          Add a room
+        </LinkButton>
+        <LinkButton to="/rooms" block className="min-h-20 text-xl gap-4">
+          <PixelArt name="house" size={32} />
+          My rooms
+        </LinkButton>
+        <div className="grid grid-cols-2 gap-4">
+          <LinkButton to="/settings" block className="min-h-16">
+            Settings
+          </LinkButton>
+          <LinkButton to="/help" block className="min-h-16">
+            Help
+          </LinkButton>
+        </div>
       </nav>
     </Screen>
   );

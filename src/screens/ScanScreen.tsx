@@ -1,18 +1,16 @@
 import type { PluginListenerHandle } from '@capacitor/core';
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { MicButton } from '../components/MicButton';
 import { Screen } from '../components/Screen';
-import { Button, Card, ErrorBox, Field, LinkButton, Select, Spinner } from '../components/ui';
-import { cue, say } from '../lib/feedback';
-import type { ScanDraft, ScanResult } from '../lib/scan/types';
+import { Button, Card, Field, LinkButton } from '../components/ui';
+import { announce, ask, cue, say } from '../lib/feedback';
+import type { ScanResult } from '../lib/scan/types';
 import { Scan, type ScanInstruction, type ScanProgress } from '../plugins/scan';
-import { Speech } from '../plugins/speech';
-import { useDraft } from '../state/queries';
-import { useScanDrafts } from '../state/scanDrafts';
-import { useRepo } from '../state/session';
+import { usePlace } from '../state/place';
 
 const COACH: Record<ScanInstruction, string> = {
-  normal: 'Good. Keep slowly sweeping the walls.',
+  normal: '',
   moveCloseToWall: 'Move closer to the wall.',
   moveAwayFromWall: 'Step back from the wall.',
   slowDown: 'Slow down.',
@@ -20,167 +18,163 @@ const COACH: Record<ScanInstruction, string> = {
   lowTexture: 'Point the phone at a part of the room with more detail.',
 };
 
-const START_TIPS =
-  'Hold the phone upright at chest height. Start at the door, then walk slowly along the walls all the way around the room. Point the phone at every door and any stairs. Double-tap Finish when you are back at the door.';
+/** Help speech recognition with names people commonly give rooms. */
+const COMMON_ROOMS = [
+  'Kitchen',
+  'Bedroom',
+  'Bathroom',
+  'Closet',
+  'Living room',
+  'Dining room',
+  'Hallway',
+  'Office',
+  'Laundry room',
+  'Entrance',
+  'Garage',
+];
 
-type Phase = 'ready' | 'capturing' | 'review' | 'saved';
+const HOW_TO =
+  'Stand in the doorway, holding the phone upright at chest height. Then walk slowly along the walls, all the way around the room, and come back to the door. The phone will coach you. If this room shares a door with a room you already scanned, start in that doorway so the two rooms connect.';
+
+type Phase = 'ready' | 'capturing' | 'naming' | 'saved';
 
 export default function ScanScreen() {
-  const { mapId } = useParams();
-  const repo = useRepo();
-  const draft = useDraft(mapId);
-  const saveDraft = useScanDrafts((s) => s.save);
-  const allDrafts = useScanDrafts((s) => s.drafts);
-  const drafts = allDrafts.filter((d) => d.mapId === mapId);
-  const progressById = useScanDrafts((s) => s.progress);
-  const errors = useScanDrafts((s) => s.errors);
+  const navigate = useNavigate();
+  const addRoom = usePlace((s) => s.addRoom);
+  const roomCount = usePlace((s) => s.place.graph.rooms.length);
   const [support, setSupport] = useState<{ supported: boolean; reason?: string } | null>(null);
   const [phase, setPhase] = useState<Phase>('ready');
   const [progress, setProgress] = useState<ScanProgress | null>(null);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [name, setName] = useState('');
-  const [chosenFloor, setFloorId] = useState('');
-  const [error, setError] = useState<unknown>(null);
-  const [listening, setListening] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [message, setMessage] = useState('');
   const lastCoach = useRef(0);
   const handles = useRef<PluginListenerHandle[]>([]);
 
   useEffect(() => {
-    void Scan.isSupported().then(setSupport);
-    return () => {
-      handles.current.forEach((h) => void h.remove());
-    };
+    void Scan.isSupported().then((s) => {
+      setSupport(s);
+      if (!s.supported) void say(`${s.reason} You can still navigate with the sample home.`);
+      else void announce(`Add a room. ${HOW_TO} Press Start scanning when you're in the doorway.`);
+    });
+    return () => handles.current.forEach((h) => void h.remove());
   }, []);
 
+  const signText = (r: ScanResult) => r.landmarks.find((l) => l.kind === 'room_number' && l.text)?.text;
+
+  /** Ask for the room's name out loud; loop back here from "Say it again". */
+  const askName = async (r: ScanResult, intro = '') => {
+    const sign = signText(r);
+    const hint = sign ? ` I saw a sign that says ${sign}.` : '';
+    try {
+      const heard = await ask(`${intro}What is this room called?${hint} Say its name after the tone.`, [
+        ...COMMON_ROOMS,
+        ...(sign ? [`Room ${sign}`] : []),
+      ]);
+      if (heard) {
+        setName(heard);
+        setTyped(heard);
+        void say(`I heard ${heard}. Press Save, or Say it again.`);
+      } else {
+        void say("I didn't hear a name. Press Say the name to try again, or type it.");
+      }
+    } catch {
+      void say('Listening is not available. Type the room name instead.');
+    }
+  };
+
   const start = async () => {
-    setError(null);
     setPhase('capturing');
     setProgress(null);
-    say(START_TIPS);
+    setName('');
+    setTyped('');
+    void say('Scanning. Walk slowly along the walls.');
     handles.current.forEach((h) => void h.remove());
     handles.current = await Promise.all([
       Scan.addListener('instruction', ({ instruction }) => {
-        // Throttle coaching so it doesn't talk over itself.
         const now = Date.now();
-        if (now - lastCoach.current < 4000 || instruction === 'normal') return;
+        if (!COACH[instruction] || now - lastCoach.current < 4000) return;
         lastCoach.current = now;
         void say(COACH[instruction], 'low');
       }),
       Scan.addListener('progress', (p) => {
         setProgress((prev) => {
-          if (prev && p.doors > prev.doors) void cue('confirm', 'Door found.', 'low');
+          if (prev && p.doors + p.openings > prev.doors + prev.openings)
+            void cue('confirm', 'Door found.', 'low');
           if (prev && p.stairs > prev.stairs) void cue('floorChange', 'Stairs found.', 'low');
           return p;
         });
-      }),
-      Scan.addListener('landmark', (l) => {
-        if (l.kind === 'room_number') setName((n) => n || `Room ${l.text}`);
       }),
     ]);
     try {
       const { result } = await Scan.startCapture({ detectText: true });
       setResult(result);
-      setName(
-        (n) =>
-          n ||
-          (result.landmarks.find((l) => l.kind === 'room_number')?.text
-            ? `Room ${result.landmarks.find((l) => l.kind === 'room_number')!.text}`
-            : ''),
-      );
-      setPhase('review');
+      setPhase('naming');
       const doors = result.openings.length;
-      await cue(
-        'arrival',
-        `Scan complete. Found ${doors} ${doors === 1 ? 'door or opening' : 'doors and openings'}${result.stairs.length ? ` and ${result.stairs.length} stairs` : ''}. Now name the room.`,
+      await cue('arrival');
+      void askName(
+        result,
+        `Scan finished. I found ${doors} ${doors === 1 ? 'door or opening' : 'doors and openings'}. `,
       );
     } catch (e) {
       setPhase('ready');
       if (e instanceof Error && /cancel/i.test(e.message)) void cue('cancel', 'Scan cancelled.');
-      else setError(e);
+      else void say(`The scan didn't finish. ${e instanceof Error ? e.message : ''} Try again.`);
     } finally {
       handles.current.forEach((h) => void h.remove());
       handles.current = [];
     }
   };
 
-  const dictate = async () => {
-    setListening(true);
-    try {
-      await say('Say the room name after the tone.');
-      void cue('confirm');
-      const { transcript } = await Speech.listen({ timeoutMs: 6000 });
-      if (transcript) {
-        const clean = transcript.replace(/[.]$/, '').replace(/\b\w/g, (c) => c.toUpperCase());
-        setName(clean);
-        void say(`Name set to ${clean}.`);
-      } else void say('I did not catch that. You can type the name instead.');
-    } catch (e) {
-      setError(e);
-    } finally {
-      setListening(false);
-    }
-  };
-
-  const floorId = chosenFloor || draft.data?.floors[0]?.id || '';
-
   const save = async () => {
-    if (!result || !mapId) return;
-    const d: ScanDraft = {
-      id: result.scanId,
-      mapId,
-      name: name.trim() || 'Unnamed room',
-      floorId: floorId || null,
-      result,
-      status: 'draft',
-      createdAt: Date.now(),
-    };
-    await saveDraft(d);
+    const finalName = (typed || name).trim();
+    if (!result || !finalName) {
+      void say('The room needs a name first.');
+      return;
+    }
+    const firstRoom = roomCount === 0;
+    const { joinedTo } = await addRoom(result, finalName);
+    const text = firstRoom
+      ? `${finalName} saved. It's your first room. To add the next one, stand in a doorway of ${finalName} and scan the room on the other side.`
+      : joinedTo.length > 0
+        ? `${finalName} saved and connected to ${joinedTo.join(' and ')}.`
+        : `${finalName} saved, but I couldn't find a door it shares with your other rooms, so you can't navigate to it yet. Scan the room next to it, starting in the doorway they share.`;
+    setMessage(text);
     setPhase('saved');
-    void cue(
-      'confirm',
-      repo.kind === 'firebase' ? 'Saved. It will upload on Wi-Fi.' : 'Saved on this device.',
-    );
+    void cue('confirm', text);
   };
-
-  if (!support) return <Spinner />;
 
   return (
-    <Screen title="Scan a room" back={`/maps/${mapId}`}>
-      {!support.supported && (
+    <Screen title="Add a room" back="/">
+      {support && !support.supported && (
         <Card>
-          <p role="alert">{support.reason}</p>
-          <p className="text-muted mt-2">
-            You can still navigate any map that has been scanned and published.
+          <p role="alert" className="text-lg">
+            {support.reason}
           </p>
+          <p className="text-muted mt-2">You can still navigate using the sample home.</p>
         </Card>
       )}
 
-      {support.supported && phase === 'ready' && (
-        <Card className="flex flex-col gap-4">
+      {support?.supported && phase === 'ready' && (
+        <>
           {support.reason === 'simulated' && (
             <p className="text-warn">Development mode: the scanner is simulated in this browser.</p>
           )}
-          <p>{START_TIPS}</p>
-          {draft.data && draft.data.floors.length > 1 && (
-            <Select label="Floor" value={floorId} onChange={(e) => setFloorId(e.target.value)}>
-              {draft.data.floors.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </Select>
-          )}
-          <Button variant="primary" large block onClick={() => void start()}>
+          <Card>
+            <p className="text-lg">{HOW_TO}</p>
+          </Card>
+          <Button variant="primary" large block className="min-h-24 text-2xl" onClick={() => void start()}>
             Start scanning
           </Button>
-        </Card>
+        </>
       )}
 
       {phase === 'capturing' && (
         <Card className="flex flex-col gap-4">
           <h2 className="text-xl font-bold">Scanning…</h2>
           <label className="flex flex-col gap-1">
-            <span className="font-semibold">Coverage</span>
+            <span className="font-semibold">Walls covered</span>
             <progress
               max={1}
               value={progress?.coverage ?? 0}
@@ -188,106 +182,75 @@ export default function ScanScreen() {
               aria-valuetext={`${Math.round((progress?.coverage ?? 0) * 100)} percent`}
             />
           </label>
-          <p aria-live="polite">
-            {progress
-              ? `${progress.walls} walls, ${progress.doors} doors, ${progress.openings} openings, ${progress.stairs} stairs. Tracking ${progress.tracking === 'normal' ? 'good' : 'limited'}.`
-              : 'Starting…'}
+          <p aria-live="polite" className="text-lg">
+            {progress ? `${progress.walls} walls, ${progress.doors + progress.openings} doors.` : 'Starting…'}
           </p>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="primary" large onClick={() => void Scan.finishCapture()}>
-              Finish
-            </Button>
-            <Button large onClick={() => void Scan.cancelCapture()}>
-              Cancel
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      {phase === 'review' && result && (
-        <Card className="flex flex-col gap-4">
-          <h2 className="text-xl font-bold">Review scan</h2>
-          <div className="flex gap-2 items-end">
-            <Field
-              label="Room name"
-              className="flex-1"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Room 214"
-            />
-            <Button onClick={() => void dictate()} disabled={listening} aria-label="Say the room name">
-              {listening ? 'Listening…' : 'Speak'}
-            </Button>
-          </div>
-          <ul className="list-disc pl-6">
-            {result.openings.map((o, i) => (
-              <li key={o.id}>
-                {o.category === 'door' ? 'Door' : 'Opening'} {i + 1}: {o.width.toFixed(2)} m wide (
-                {o.confidence} confidence)
-              </li>
-            ))}
-            {result.stairs.map((s, i) => (
-              <li key={s.id}>Stairs {i + 1}</li>
-            ))}
-            {result.landmarks
-              .filter((l) => l.text)
-              .map((l, i) => (
-                <li key={i}>Sign read: “{l.text}”</li>
-              ))}
-          </ul>
-          <p className={result.quality < 0.6 ? 'text-warn' : 'text-muted'}>
-            Scan quality {Math.round(result.quality * 100)}%.{' '}
-            {result.quality < 0.6 ? 'Consider scanning again for better door detection.' : ''}
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="primary" large onClick={() => void save()}>
-              Save
-            </Button>
-            <Button large onClick={() => setPhase('ready')}>
-              Scan again
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      {phase === 'saved' && (
-        <Card className="flex flex-col gap-3">
-          <p role="status">Saved “{name || 'Unnamed room'}”.</p>
-          <LinkButton to={`/maps/${mapId}/studio`} variant="primary" block>
-            Place it in Map Studio
-          </LinkButton>
-          <Button block onClick={() => (setResult(null), setName(''), setPhase('ready'))}>
-            Scan another room
+          <Button variant="primary" large block onClick={() => void Scan.finishCapture()}>
+            Finish
+          </Button>
+          <Button block onClick={() => void Scan.cancelCapture()}>
+            Cancel
           </Button>
         </Card>
       )}
 
-      <ErrorBox error={error} />
+      {phase === 'naming' && result && (
+        <>
+          <MicButton
+            label={name ? 'Say it again' : 'Say the name'}
+            prompt="Say the room's name after the tone."
+            contextualStrings={COMMON_ROOMS}
+            onHeard={(heard) => {
+              if (!heard) return void say("I didn't hear anything. Try again, or type the name.");
+              setName(heard);
+              setTyped(heard);
+              void say(`I heard ${heard}. Press Save, or Say it again.`);
+            }}
+          />
+          {name && (
+            <p className="text-2xl font-bold text-center" aria-live="polite">
+              “{name}”
+            </p>
+          )}
+          <Button
+            variant="primary"
+            large
+            block
+            className="min-h-20 text-2xl"
+            disabled={!typed.trim()}
+            onClick={() => void save()}
+          >
+            Save{typed.trim() ? ` ${typed.trim()}` : ''}
+          </Button>
+          <Field
+            label="Or type the name"
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            autoCapitalize="words"
+          />
+          <Button block onClick={() => setPhase('ready')}>
+            Scan again
+          </Button>
+        </>
+      )}
 
-      {drafts.length > 0 && (
-        <Card>
-          <h2 className="text-xl font-bold mb-2">Your scans</h2>
-          <ul className="flex flex-col gap-2">
-            {drafts.map((d) => (
-              <li key={d.id} className="flex justify-between gap-2">
-                <span>{d.name}</span>
-                <span className="text-muted text-sm">
-                  {d.status === 'uploading'
-                    ? `Uploading ${Math.round((progressById[d.id] ?? 0) * 100)}%`
-                    : d.status === 'draft'
-                      ? errors[d.id]
-                        ? `Waiting to upload (${errors[d.id]})`
-                        : 'Waiting for Wi-Fi'
-                      : d.status === 'placed'
-                        ? 'Placed on map'
-                        : repo.kind === 'local'
-                          ? 'Saved on this phone'
-                          : 'Uploaded'}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
+      {phase === 'saved' && (
+        <>
+          <Card>
+            <p role="status" className="text-lg">
+              {message}
+            </p>
+          </Card>
+          <Button variant="primary" large block className="min-h-20" onClick={() => void start()}>
+            Scan the next room
+          </Button>
+          <LinkButton to="/go" large block>
+            Go somewhere
+          </LinkButton>
+          <Button block onClick={() => navigate('/')}>
+            Done
+          </Button>
+        </>
       )}
     </Screen>
   );

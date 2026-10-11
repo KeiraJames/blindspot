@@ -1,71 +1,41 @@
 # Architecture
 
-## Runtime
+PathSense is a React app running in a WKWebView inside an iOS-only Capacitor shell. The interface is web; LiDAR scanning, AR tracking, vibration, on-device vision and speech are native Swift plugins (`native/pathsense-native`, a Swift package that `cap sync` registers automatically).
 
-```
-┌───────────────────────── iPhone / iPad (iOS 17+) ─────────────────────────┐
-│  WKWebView (React UI, transparent while navigating)                        │
-│    NavigationController ─ RouteTracker ─ A* ─ GraphIndex                   │
-│    VoiceGuide (ElevenLabs clips + AVSpeech) · earcons · Core Haptics specs │
-│  ──────────────── Capacitor bridge ────────────────                        │
-│  ARNav (ARKit, behind the web view) → pose events                          │
-│  Vision (LiDAR depth, people, OCR, optional Core ML) → hazard/text events  │
-│  Scan (RoomPlan capture screen) → room, USDZ, ARWorldMap, mesh files       │
-│  Haptics (CHHapticEngine) · Speech (AVSpeech, dictation) · AppleSignIn     │
-└──────────────────────────────────────────────────────────────────────────┘
-            │ Firestore / Storage / callable functions (CPU only)
-            ▼
-   maps, versions, drafts, scans, orgs, invites · scan files · tts proxy → ElevenLabs
-```
+## Scope
 
-The web UI stays the product surface (PRD). The native plugins live in `native/pathsense-native`, a Swift package. `cap sync` finds the `CAPBridgedPlugin` classes and adds them to `packageClassList`, so the Xcode project needs no hand edits.
+The app does three things: add a room (scan it and name it by voice), go somewhere (spoken, vibration-backed guidance), and manage your rooms. Everything stays on the phone.
 
-## Coordinates
-
-- **Map frame:** meters, with `x` pointing east-ish and `y` north-ish on the floor plan. Bearings are radians counter-clockwise from +x, so a positive turn angle means left.
-- **ARKit frame:** `x` right, `y` up, camera looking −z. Plan coordinates are `(x, −z)`. Yaw 0 means facing −z, positive means turned left, and bearing = π/2 + yaw.
-- **Scans** live in their own ARKit frame. Each placed scan stores a rigid `Transform2D` (scan → map) and its floor height.
-
-## Map pipeline
-
-1. **Scan:** RoomPlan returns walls, doors, openings and objects (stairs). `ScanExport.simplify` converts them to a `ScanResult` in plan coordinates. The capture also saves the ARWorldMap, a USDZ model, a downsampled OBJ mesh, and room numbers read by OCR.
-2. **Place:** `proposeDoorMatches` aligns each unmatched placed door with each opening of the new scan, face to face. It counts other openings that land on existing doors and penalizes footprint overlap. When several doors line up, it refines the alignment with Umeyama least squares. `placeScan` then adds a room node, door nodes and stair landings, and merges the paired doors.
-3. **Edit:** Map Studio adds hallway points, POIs, stairs and elevators between floors, with undo/redo. `validateGraph` flags dangling edges, flat edges that cross floors, unmatched doors, disconnected parts and missing exits.
-4. **Publish:** versions are immutable. A Cloud Function validates each new version with the same `validateGraph` code, and only valid versions become `latestVersion`.
-
-## Navigation
-
-- **Routing** is A* with a 3D straight-line heuristic. Stairs cost `length × stairFactor + stairPenalty`, elevators `length + elevatorPenalty`, and "avoid stairs" sets the stairs cost to infinity. Every edge costs at least its length, so the heuristic stays admissible. Tests check the result against Dijkstra for every pair of nodes.
-- **Guidance:** `buildSteps` creates a maneuver wherever the path bends by 25° or more, wherever the floor changes, and at arrival. Doors become "past" landmarks, or "through" when the doorway joins two rooms.
-- **Tracking:** `RouteTracker` projects each pose onto the next few route segments and never moves backwards. It emits approach prompts (8 m), maneuver prompts (2 m), drift corrections (heading error over 40° for 1.5 s, paused near turns), off-route events (over 3 m for 2.5 s, which triggers a reroute), tracking loss and arrival. It skips approach prompts already covered by the previous "then walk N meters".
-- **Pose:** `PoseAdapter` maps ARKit poses into the map. With an ARWorldMap it uses the scan's placement transform after relocalization. Without one, it anchors the first pose at the chosen start, facing the first leg. Floors are detected from the change in height, and a two-finger swipe confirms a floor change manually (elevators break height tracking).
-- **Feedback:** each cue pairs a Core Haptics pattern with a synthesized earcon and, usually, speech. Speech goes into a priority queue: hazards interrupt, low-priority coaching is dropped when busy. Each prompt is also mirrored to an aria-live region for VoiceOver and braille users.
+The original PRD ([PRD.md](PRD.md)) also described a map editor, accounts, sharing through Firebase, organizations and a cloud voice. Those were built and later removed to keep the app simple and voice-first; they remain in git history (up to commit `769f791`).
 
 ## Voice
 
-ElevenLabs is called through the `tts` callable function, which holds the API key, allows only the configured voice, and enforces a per-user daily character quota. Clips are cached in IndexedDB by voice and text, and the next two prompts are prefetched. If a clip isn't ready within 0.9 s (0.15 s for hazards), the native `AVSpeechSynthesizer` speaks instead.
+`src/lib/feedback.ts` is the only way the app talks or listens:
 
-## Data model (Firestore)
+- `say(text)` always speaks (navigation prompts, coaching, answers), using the built-in iOS voice (`AVSpeechSynthesizer`) through a priority queue. Hazards interrupt; low-priority hints are skipped when busy.
+- `announce(text)` speaks screen guidance, but when VoiceOver is running it only updates the live region, because VoiceOver already reads the screen.
+- `ask(prompt)` speaks a question, plays a tone and transcribes the answer on the device (`SFSpeechRecognizer`, on-device when supported).
+- `cue(name, text)` plays a Core Haptics pattern and a matching sound, then speaks.
 
-| Path | Contents |
-| --- | --- |
-| `maps/{id}` | name, ownerId, orgId, `members{uid: role}`, memberUids, orgMemberUids (server), latestVersion (server), versionCounter |
-| `maps/{id}/draft/current` | `graphJson` being edited (editors only) |
-| `maps/{id}/versions/{000001}` | immutable `graphJson`, note, status `pending → valid/invalid` (server), issues |
-| `maps/{id}/scans/{scanId}` | simplified scan JSON, Storage paths, summary |
-| `orgs/{id}` | name, `members{uid: role}`, memberUids |
-| `invites/{code}` | server only: target, role, expiry, uses |
-| `usage/{uid}` | server only: daily TTS characters |
-| `users/{uid}` | displayName |
+Every spoken line is mirrored to an `aria-live` region for braille displays.
 
-Storage: `maps/{mapId}/scans/{scanId}/{roomJson|usdz|worldMap|mesh}.*`.
+Voice commands during navigation are parsed in `src/lib/voice/commands.ts`. Room names are matched forgivingly (extra words, partial names, and recognition slips such as "closed" for "Closet").
 
-The graph is stored as JSON per version, not as `nodes`/`edges` collections. The graph is the routing source of truth (PRD §9) and is always loaded whole, and a single document gives atomic, immutable versions. A Firestore document is limited to 1 MB, roughly 4,000 nodes, which is plenty for a building. Split a campus into one map per building.
+## Rooms and the map
 
-## Decisions that refine the PRD
+- **Scan:** RoomPlan returns walls, doors, openings and stairs. `ScanExport.simplify` (Swift) turns them into a `ScanResult` in plan coordinates (meters; ARKit `x`, `−z`). The capture also saves an ARWorldMap for relocalization.
+- **Add:** `addScannedRoom` (`src/lib/graph/rooms.ts`) anchors the first room. Each later room is snapped onto an unmatched door of an existing room when one fits (similar width, no overlap), using the door-to-door alignment and Umeyama refinement in `stitch.ts`. If nothing fits, the room is kept separate and the user is told to scan the room next to it from the shared doorway.
+- **Names:** doors are named after the rooms they join ("the door between Bedroom and Kitchen"), because that's what the guide says when you walk through them.
+- **Storage:** one place per device, in IndexedDB (`src/state/place.ts`). Until the first room exists, the navigator uses the sample home.
 
-- **TTS goes through a Cloud Function** instead of calling ElevenLabs straight from the web layer, so the API key never ships in the app. The function only forwards text; no ML runs there.
-- **The `Speech` plugin** combines the PRD's SpeechFallbackPlugin (AVSpeech) with on-device dictation, used for voice room naming and destination search.
-- **The `AppleSignIn` plugin** exists because Firebase's web popup sign-in doesn't work inside WKWebView.
-- **Organization access** is mirrored onto org maps (`orgMemberUids`) by a function, so membership queries and list rules can be proven without per-document lookups.
-- **With VoiceOver on**, gestures come from a native direct-interaction view, because VoiceOver intercepts touches in a web view. The web control bar stays reachable underneath it.
+## Navigation
+
+- **Routing:** A* over the room graph with a straight-line heuristic (tests check it against Dijkstra for every pair of nodes).
+- **Guidance:** `buildSteps` creates a maneuver wherever the path bends by 25° or more, and at arrival.
+- **Tracking:** `RouteTracker` projects each pose onto the route and never moves backwards. It emits approach prompts (8 m), maneuver prompts (2 m), drift corrections (paused near turns), off-route events (more than 3 m for 2.5 s, which triggers a reroute), tracking loss and arrival.
+- **Pose:** `PoseAdapter` maps ARKit poses into the map, using the starting room's ARWorldMap when available. Otherwise it assumes you start in the chosen room, facing the first leg.
+- **Hazards:** the Vision plugin warns about close obstacles (LiDAR depth) and people. It never says a path is clear.
+
+## Coordinates
+
+Map frame: meters, `x` east-ish, `y` north-ish; bearings in radians, counter-clockwise from +x (positive turn = left). ARKit: `x` right, `y` up, camera looks −z; plan = `(x, −z)`; bearing = π/2 + yaw.

@@ -1,49 +1,40 @@
-# VoiceOver walkthrough checklist
+# Accessibility checklist
 
-Run this on a device with VoiceOver on (Settings → Accessibility → VoiceOver) before each TestFlight build. Test at the default text size and at the largest Dynamic Type size. Headings use a pixel font; check they stay readable at large sizes.
+Run this on an iPhone before each test build, twice: once **with VoiceOver on** (Settings → Accessibility → VoiceOver) and once **with it off**, eyes closed. Also test at the largest Dynamic Type size; headings use a pixel font, so check they stay readable.
 
-## First launch
-- [ ] The safety notice is announced as an alert dialog, and focus starts on it.
-- [ ] "I understand" is reachable and dismisses the notice.
-- [ ] On the sign-in screen, each option is a button with a clear name.
+## Without VoiceOver (the app speaks for itself)
+- [ ] First launch reads the safety notice aloud and says which button to press.
+- [ ] Home speaks its menu once per launch.
+- [ ] Every screen tells you what to do when it opens.
+- [ ] Long screens scroll; nothing is cut off at the bottom.
 
-## Home and map screens
-- [ ] Each screen change announces the new heading (h1 receives focus).
-- [ ] Map cards read the name, role and version. The Navigate and Open buttons name the map.
-- [ ] The "Back" button is first in the swipe order on every inner screen.
-
-## Navigate (choose)
-- [ ] "Where are you?" and "Where to?" lists read the full place name, including the floor.
-- [ ] The search field has a label. "Speak" starts dictation and the result is announced.
-- [ ] "Nearest exit", "Bathroom" and "Elevator" plan a route and speak a summary.
-- [ ] The route preview reads as a numbered list. The "Avoid stairs" switch reports on/off.
-
-## Navigate (guiding)
-- [ ] With VoiceOver on, swipes and taps in the top area work directly, without double-tap and hold (native direct-interaction overlay).
-- [ ] Swipe up repeats; swipe down asks for confirmation; double-tap confirms ending.
-- [ ] Touch and hold pauses and resumes.
-- [ ] Two-finger swipe up or down at stairs or an elevator confirms the floor.
+## With VoiceOver
+- [ ] The app does not talk over VoiceOver when a screen opens (only navigation prompts and answers are spoken).
+- [ ] Each screen change announces the new heading.
+- [ ] "Back" is first in the swipe order on every inner screen.
 - [ ] Every spoken prompt also appears in the live region (braille display shows it).
-- [ ] The control bar (Repeat, Where am I, Pause, Nearest exit, End) is reachable by swiping.
-- [ ] A hazard interrupts speech and plays the sharp triple vibration.
-- [ ] Arrival plays two long pulses and is announced once.
-- [ ] Turn off the network mid-route: prompts continue with the built-in voice.
 
-## Scan
-- [ ] On a non-LiDAR device, the message explains scanning is unavailable and navigation still works.
-- [ ] The capture screen's Finish and Cancel buttons are the only focusable elements and have hints.
+## Add a room
+- [ ] On a phone without LiDAR, the app says scanning isn't available and that navigation still works.
 - [ ] Coaching ("Move closer to the wall", "Door found") is spoken without overlapping.
-- [ ] The review screen reads detected doors and stairs. "Speak" fills in the room name.
+- [ ] After the scan, the phone asks for the room's name, plays a tone and listens.
+- [ ] It reads back what it heard; "Say it again" re-asks; typing works as a fallback.
+- [ ] Saving says whether the room connected to another room, and what to do if it didn't.
 
-## Map Studio (WCAG 2.2 AA)
-- [ ] Floor tabs and panel tabs announce "tab, selected, n of m".
-- [ ] Every canvas action is possible from the Places panel: add, rename, change type, move with arrow buttons, connect, remove a connection, delete.
-- [ ] Checks list each issue with a "Show" button that selects the place.
-- [ ] Publish is disabled with an explanation while there are errors.
-- [ ] The 3D view has a text summary.
-- [ ] Contrast: check the pink theme and "Maximum contrast" mode. The pink theme stays light even when the phone is in dark mode.
-- [ ] Focus outlines are visible with a keyboard (iPad with keyboard).
+## Go somewhere
+- [ ] "Say where you are" and "Say where to go" understand room names, including small slips ("closed" → Closet).
+- [ ] An unknown name is answered with the list of rooms.
+- [ ] The route is read aloud; Start is the first button.
+- [ ] While walking: Speak understands where am I, repeat, pause, resume, stop, and a room name (reroutes).
+- [ ] Tap = where am I, swipe up = repeat, touch and hold = pause. With VoiceOver on these work directly in the map area.
+- [ ] A hazard interrupts speech and plays the sharp triple vibration. Arrival plays two long pulses, once.
+- [ ] Airplane mode: everything still works (speech and recognition are on the device).
+
+## My rooms
+- [ ] "Read my rooms aloud" lists them.
+- [ ] Rename asks for the new name by voice; Type is the fallback.
+- [ ] Delete asks for confirmation out loud.
 
 ## Settings
-- [ ] Every toggle is a switch with a name and on/off state; sliders announce their value text.
-- [ ] "Test voice" and the Practice screen play each cue with its description.
+- [ ] Every toggle is a switch with a name and on/off state; the speed slider announces its value.
+- [ ] Contrast: check the pink theme and Maximum contrast mode.

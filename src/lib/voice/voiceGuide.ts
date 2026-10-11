@@ -1,14 +1,9 @@
 import { Speech } from '../../plugins/speech';
-import { hashKey, idb } from '../util/idb';
-import { synthesize } from './elevenlabs';
 
 export type Priority = 'low' | 'normal' | 'high';
 
 export interface VoiceSettings {
   enabled: boolean;
-  /** Use ElevenLabs; otherwise always AVSpeech. */
-  premium: boolean;
-  voiceId: string;
   rate: number;
 }
 
@@ -18,22 +13,15 @@ interface Utterance {
   resolve: () => void;
 }
 
-const MAX_CACHE_ENTRIES = 400;
-
 /**
- * One consistent guide voice. ElevenLabs clips are cached in IndexedDB by text + voice and
- * prefetched ahead of time; when synthesis fails or is slow, AVSpeechSynthesizer speaks
- * instead so a prompt is never dropped. High-priority prompts (hazards) interrupt.
+ * The guide voice: the built-in iOS voice (AVSpeechSynthesizer), so it works offline and
+ * starts instantly. Prompts are queued; a high-priority prompt (hazard, arrival) drops the
+ * queue and interrupts, and low-priority hints are skipped when something else is talking.
  */
 export class VoiceGuide {
   private queue: Utterance[] = [];
   private speaking: Utterance | null = null;
-  private audioEl: HTMLAudioElement | null = null;
-  private inflight = new Map<string, Promise<Blob | null>>();
   private lastSpoken = '';
-  private premiumFailures = 0;
-  /** Fall back to AVSpeech when a clip isn't ready within this time. */
-  latencyBudgetMs = 900;
 
   constructor(private settings: VoiceSettings) {}
 
@@ -45,18 +33,20 @@ export class VoiceGuide {
     return this.lastSpoken;
   }
 
+  get busy(): boolean {
+    return this.speaking !== null || this.queue.length > 0;
+  }
+
   say(text: string, priority: Priority = 'normal'): Promise<void> {
     if (!this.settings.enabled || !text.trim()) return Promise.resolve();
     return new Promise((resolve) => {
       const u: Utterance = { text, priority, resolve };
       if (priority === 'high') {
-        // Drop queued low/normal prompts; they are stale once a hazard is announced.
         this.queue.forEach((q) => q.resolve());
         this.queue = [u];
-        this.interruptCurrent();
+        void Speech.stop();
       } else {
-        if (priority === 'low' && (this.speaking || this.queue.length > 0)) return resolve();
-        // Coalesce duplicate consecutive prompts.
+        if (priority === 'low' && this.busy) return resolve();
         if (this.queue.at(-1)?.text === text || this.speaking?.text === text) return resolve();
         this.queue.push(u);
       }
@@ -65,26 +55,13 @@ export class VoiceGuide {
   }
 
   repeat() {
-    if (this.lastSpoken) void this.say(this.lastSpoken, 'normal');
+    if (this.lastSpoken) void this.say(this.lastSpoken);
   }
 
+  /** Stop talking now and forget anything queued. */
   stop() {
     this.queue.forEach((q) => q.resolve());
     this.queue = [];
-    this.interruptCurrent();
-  }
-
-  /** Warm the cache for upcoming prompts (PRD: prefetch next two). */
-  prefetch(texts: string[]) {
-    if (!this.settings.premium) return;
-    for (const t of texts.slice(0, 2)) void this.clip(t);
-  }
-
-  private interruptCurrent() {
-    if (this.audioEl) {
-      this.audioEl.pause();
-      this.audioEl.dispatchEvent(new Event('ended'));
-    }
     void Speech.stop();
   }
 
@@ -95,73 +72,13 @@ export class VoiceGuide {
     this.speaking = next;
     this.lastSpoken = next.text;
     try {
-      // Hazards can't wait on the network: only an already-cached clip is fast enough.
-      const budget = next.priority === 'high' ? 150 : this.latencyBudgetMs;
-      const blob =
-        this.settings.premium && this.premiumFailures < 3 ? await this.clipWithin(next.text, budget) : null;
-      if (this.speaking !== next) return; // interrupted while fetching
-      if (blob) await this.playBlob(blob);
-      else await Speech.speak({ text: next.text, rate: this.settings.rate, interrupt: false });
+      await Speech.speak({ text: next.text, rate: this.settings.rate });
     } catch {
-      await Speech.speak({ text: next.text, rate: this.settings.rate }).catch(() => undefined);
+      /* speech unavailable: the live region still shows the text */
     } finally {
       next.resolve();
-      if (this.speaking === next) this.speaking = null;
+      this.speaking = null;
       void this.pump();
     }
-  }
-
-  private clipWithin(text: string, budgetMs: number): Promise<Blob | null> {
-    return Promise.race([this.clip(text), new Promise<null>((r) => setTimeout(() => r(null), budgetMs))]);
-  }
-
-  private clip(text: string): Promise<Blob | null> {
-    const key = hashKey(`${this.settings.voiceId}|${text}`);
-    const existing = this.inflight.get(key);
-    if (existing) return existing;
-    const p = (async () => {
-      const cached = await idb.get<Blob>('tts', key).catch(() => undefined);
-      if (cached) return cached;
-      try {
-        const blob = await synthesize(text, this.settings.voiceId);
-        this.premiumFailures = 0;
-        void this.store(key, blob);
-        return blob;
-      } catch {
-        this.premiumFailures++;
-        return null;
-      }
-    })();
-    this.inflight.set(key, p);
-    void p.finally(() => this.inflight.delete(key));
-    return p;
-  }
-
-  private async store(key: string, blob: Blob) {
-    try {
-      await idb.set('tts', key, blob);
-      const keys = await idb.keys('tts');
-      if (keys.length > MAX_CACHE_ENTRIES)
-        for (const k of keys.slice(0, keys.length - MAX_CACHE_ENTRIES)) await idb.del('tts', k);
-    } catch {
-      /* cache is best effort */
-    }
-  }
-
-  private playBlob(blob: Blob): Promise<void> {
-    return new Promise((resolve) => {
-      const url = URL.createObjectURL(blob);
-      const el = new Audio(url);
-      el.playbackRate = Math.min(2, Math.max(0.5, this.settings.rate));
-      this.audioEl = el;
-      const done = () => {
-        URL.revokeObjectURL(url);
-        if (this.audioEl === el) this.audioEl = null;
-        resolve();
-      };
-      el.addEventListener('ended', done, { once: true });
-      el.addEventListener('error', done, { once: true });
-      el.play().catch(done);
-    });
   }
 }

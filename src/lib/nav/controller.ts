@@ -52,7 +52,6 @@ export interface NavState {
 export interface NavOutput {
   cue(name: Cue, speech?: string, priority?: Priority): void;
   say(text: string, priority?: Priority): void;
-  prefetch(texts: string[]): void;
   repeat(): void;
   stopSpeech(): void;
 }
@@ -143,7 +142,7 @@ export class NavigationController {
 
   setStart(nodeId: string, announce = true) {
     this.set({ startId: nodeId, phase: this.state.destinationId ? 'preview' : 'choose_destination' });
-    if (announce) this.speak(`Starting from ${this.label(nodeId)}. Choose a destination.`);
+    if (announce) this.speak(`Starting from ${this.label(nodeId)}. Where do you want to go?`);
     if (this.state.destinationId) this.planRoute();
   }
 
@@ -226,10 +225,23 @@ export class NavigationController {
     });
     if (announce && this.state.phase === 'preview') {
       const summary = routeSummary(steps, route, this.opts.phrase, this.label(dest));
-      this.speak(`${summary} ${stepText(steps[0]!, this.opts.phrase)} Double-tap to start.`);
+      this.speak(`${summary} ${stepText(steps[0]!, this.opts.phrase)} Press Start when you're ready.`);
     }
-    this.out.prefetch(steps.slice(1, 3).map((s) => stepText(s, this.opts.phrase, this.label(dest))));
     return true;
+  }
+
+  /** Change destination mid-walk (spoken "take me to …"): reroute from where the walker is now. */
+  goTo(nodeId: string) {
+    if (this.state.phase !== 'guiding' && this.state.phase !== 'paused') {
+      this.setDestination(nodeId);
+      return;
+    }
+    const from = this.state.pose
+      ? nearestNode(this.index, this.state.pose.floorId, this.state.pose.position)
+      : this.state.startId;
+    if (!from) return;
+    this.set({ startId: from, destinationId: nodeId, phase: 'guiding' });
+    if (this.planRoute(from, false)) this.announceRerouted(`Going to ${this.label(nodeId)} instead.`);
   }
 
   routeToNearest(kind: 'exit' | 'bathroom' | 'elevator') {
@@ -358,8 +370,6 @@ export class NavigationController {
         else if (e.step.turn && isLeft(e.step.turn)) this.cue('turnLeft', text);
         else if (e.step.turn && isRight(e.step.turn)) this.cue('turnRight', text);
         else this.cue('confirm', text);
-        const k = this.state.steps.indexOf(e.step);
-        this.out.prefetch(this.state.steps.slice(k + 1, k + 3).map((s) => stepText(s, p)));
         break;
       }
       case 'veer':

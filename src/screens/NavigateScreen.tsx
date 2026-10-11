@@ -1,13 +1,13 @@
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { FloorPlan } from '../components/FloorPlan';
 import { GestureSurface } from '../components/GestureSurface';
+import { MicButton } from '../components/MicButton';
 import { NavMap } from '../components/NavMap';
 import { PixelArt, spriteFor } from '../components/PixelArt';
 import { Screen } from '../components/Screen';
-import { Button, Card, cx, ErrorBox, Field, Spinner, Toggle } from '../components/ui';
-import { cue, say, voice } from '../lib/feedback';
+import { Button, Card, cx, ErrorBox, Field } from '../components/ui';
+import { announce, ask, cue, say, voice } from '../lib/feedback';
 import { DEFAULT_PREFERENCES } from '../lib/graph/astar';
 import { nodeDisplayName } from '../lib/graph/graph';
 import type { MapGraph } from '../lib/graph/types';
@@ -17,46 +17,39 @@ import { stepText } from '../lib/nav/guidance';
 import { PoseAdapter } from '../lib/nav/poseAdapter';
 import { WalkSimulator } from '../lib/nav/simulator';
 import { formatDistance } from '../lib/nav/units';
+import type { ScanResult } from '../lib/scan/types';
+import { matchPlace, parseCommand, VOICE_HELP } from '../lib/voice/commands';
 import { ARNav, type ARPose } from '../plugins/arnav';
-import { Speech } from '../plugins/speech';
 import { Vision } from '../plugins/vision';
-import { usePublished } from '../state/queries';
-import { useRepo } from '../state/session';
+import { useActiveMap } from '../state/place';
 import { useSettings, type Settings } from '../state/settings';
 
 function navOptions(s: Settings): NavOptions {
   return {
     phrase: { unit: s.units, stepLength: s.stepLength },
-    prefs: {
-      ...DEFAULT_PREFERENCES,
-      avoidStairs: s.avoidStairs,
-      stairPenalty: s.preferElevator ? 40 : DEFAULT_PREFERENCES.stairPenalty,
-      elevatorPenalty: s.preferElevator ? 0 : DEFAULT_PREFERENCES.elevatorPenalty,
-    },
-    hazardAlerts: s.hazardAlerts,
-    courseTicks: s.courseTicks,
-    verbosity: s.verbosity,
+    prefs: DEFAULT_PREFERENCES,
+    hazardAlerts: s.obstacleAlerts,
+    courseTicks: true,
+    verbosity: 'detailed',
   };
 }
 
 export default function NavigateScreen() {
-  const { mapId } = useParams();
-  const published = usePublished(mapId);
-  if (published.isLoading) return <Spinner label="Loading map" />;
-  if (!published.data)
-    return (
-      <Screen title="Navigate" back={`/maps/${mapId}`}>
-        <ErrorBox
-          error={published.error ?? 'This map has not been published yet. Publish it from Map Studio first.'}
-        />
-      </Screen>
-    );
-  return <Navigator mapId={mapId!} graph={published.data.graph} />;
+  const { graph, scans, isSample } = useActiveMap();
+  // Remount when the map changes (e.g. after the first room is scanned).
+  return <Navigator key={isSample ? 'sample' : 'mine'} graph={graph} scans={scans} isSample={isSample} />;
 }
 
-function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
+function Navigator({
+  graph,
+  scans,
+  isSample,
+}: {
+  graph: MapGraph;
+  scans: Record<string, ScanResult>;
+  isSample: boolean;
+}) {
   const settings = useSettings();
-  const repo = useRepo();
   const controller = useMemo(
     () =>
       new NavigationController(
@@ -64,7 +57,6 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
         {
           cue: (n, t, p) => void cue(n, t, p),
           say: (t, p) => void say(t, p),
-          prefetch: (t) => voice.prefetch(t),
           repeat: () => voice.repeat(),
           stopSpeech: () => voice.stop(),
         },
@@ -86,6 +78,11 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
   const lastAR = useRef<ARPose | null>(null);
   const arHandles = useRef<PluginListenerHandle[]>([]);
   const [, force] = useState(0);
+  const places = useMemo(
+    () => controller.destinations.map((d) => ({ id: d.id, label: d.label })),
+    [controller],
+  );
+  const roomList = places.map((p) => p.label).join(', ');
 
   useEffect(() => controller.subscribe(setState), [controller]);
   useEffect(() => controller.updateOptions(navOptions(settings)), [controller, settings]);
@@ -94,10 +91,10 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
     void ARNav.isSupported()
       .then((s) => setArAvailable(Capacitor.isNativePlatform() && s.worldTracking))
       .catch(() => setArAvailable(false));
-    say(
-      `${controller.destinations.length} places on this map. Choose where you are, then where to go. Swipe left or right to browse, double-tap to choose.`,
+    void announce(
+      `Go somewhere${isSample ? ', in the sample home' : ''}. Where are you? Press the big button and say the room you're in, or pick it from the list. The rooms are: ${roomList}.`,
     );
-  }, [controller]);
+  }, [controller]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopPoseSources = useCallback(async () => {
     sim.current?.stop();
@@ -117,34 +114,80 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
     [stopPoseSources],
   );
 
-  const onGesture = useCallback(
-    (g: Gesture) => {
-      if (g === 'twoFingerUp' || g === 'twoFingerDown') {
-        const landingId = controller.confirmFloorChange(g === 'twoFingerUp' ? 'up' : 'down');
-        if (!landingId) return;
-        const landing = controller.index.node(landingId);
-        if (sim.current) sim.current.setFloor(landing.floorId, landing.position);
-        else if (adapter.current && lastAR.current) {
-          adapter.current.anchorAt(
-            lastAR.current,
-            landing.position,
-            landing.floorId,
-            state.pose?.heading ?? controller.initialBearing(),
+  const onGesture = useCallback((g: Gesture) => controller.gesture(g), [controller]);
+
+  const chooseStart = (id: string) => {
+    void cue('confirm');
+    controller.setStart(id);
+    setQuery('');
+  };
+  const chooseDestination = (id: string) => {
+    void cue('confirm');
+    controller.setDestination(id);
+    setQuery('');
+  };
+
+  /** Spoken answer to "where are you" / "where to". */
+  const onPlaceHeard = (heard: string, pick: (id: string) => void) => {
+    if (!heard) return void say("I didn't hear anything. Press the big button and try again.");
+    const place = matchPlace(heard, places);
+    if (place) pick(place.id);
+    else void say(`I couldn't find ${heard}. The rooms are: ${roomList}. Try again.`);
+  };
+
+  /** Spoken command while walking. */
+  const speakCommand = async () => {
+    setListening(true);
+    try {
+      const heard = await ask('Say a command.', [
+        'where am I',
+        'repeat',
+        'pause',
+        'resume',
+        'stop',
+        ...places.map((p) => p.label),
+      ]);
+      const cmd = parseCommand(heard, places);
+      switch (cmd.type) {
+        case 'where':
+          controller.gesture('tap');
+          break;
+        case 'repeat':
+          voice.repeat();
+          break;
+        case 'pause':
+          controller.pause();
+          break;
+        case 'resume':
+          controller.resume();
+          break;
+        case 'end':
+          controller.end();
+          break;
+        case 'help':
+          void say(VOICE_HELP);
+          break;
+        case 'place':
+          controller.goTo(cmd.id);
+          break;
+        default:
+          void say(
+            heard
+              ? `I heard ${heard}, but I don't know that command. ${VOICE_HELP}`
+              : "I didn't hear anything.",
           );
-        }
-        void cue('floorChange', `Confirmed. ${controller.index.floors.get(landing.floorId)?.name}.`);
-        return;
       }
-      controller.gesture(g);
-    },
-    [controller, state.pose?.heading],
-  );
+    } catch {
+      void say('Listening is not available right now.');
+    } finally {
+      setListening(false);
+    }
+  };
 
   const startAR = async () => {
     const startNode = controller.index.node(controller.state.startId!);
     const scanId = startNode.scanId;
-    let worldMapPath: string | null = null;
-    if (scanId) worldMapPath = await repo.worldMapPath(mapId, scanId).catch(() => null);
+    const worldMapPath = (scanId && scans[scanId]?.files.worldMap) || null;
     const a = new PoseAdapter(graph);
     adapter.current = a;
     let reportedAnchor = false;
@@ -172,35 +215,28 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
         if (interrupted) void cue('trackingLost', 'Camera interrupted.', 'high');
       }),
       Vision.addListener('hazard', (h) => controller.hazard(h)),
-      Vision.addListener('text', (t) => {
-        const dest = controller.label(controller.state.destinationId);
-        if (dest && dest.toLowerCase().includes(t.text.toLowerCase()))
-          void say(`Sign for ${t.text} detected.`, 'low');
-      }),
     ]);
-    if (settings.showCamera) {
-      document.body.classList.add('ar-active');
-      setArVisible(true);
-    }
+    document.body.classList.add('ar-active');
+    setArVisible(true);
     await ARNav.start({
       worldMapPath: worldMapPath ?? undefined,
-      showCamera: settings.showCamera,
+      showCamera: true,
       nativeGestures: true,
       poseRate: 10,
     });
     await Vision.configure({
       rate: 4,
       detectPeople: true,
-      detectText: true,
+      detectText: false,
       depthObstacles: true,
       obstacleDistance: 1.5,
       customModel: true,
     });
-    await Vision.setEnabled({ enabled: settings.hazardAlerts });
-    if (worldMapPath) void say('Looking around to find your location. Slowly turn the phone.');
+    await Vision.setEnabled({ enabled: settings.obstacleAlerts });
+    if (worldMapPath) void say('Finding your location. Slowly turn the phone around.');
     else
       void say(
-        `This room has no saved scan, so I can't find your exact position. Stand at ${startNode.label}, hold the phone upright and face the way the first instruction points. Tap the screen at any time to hear where you are.`,
+        `Stand in ${startNode.label}, hold the phone upright, and face the way the first instruction points. Tap the screen any time to hear where you are.`,
       );
   };
 
@@ -209,9 +245,7 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
       controller.index,
       controller.state.startId!,
       controller.initialBearing(),
-      (p) => {
-        controller.onPose(p);
-      },
+      (p) => controller.onPose(p),
     );
     s.followRoute(controller.state.route!.nodeIds);
     // Walk automatically so the demo moves without extra taps; the strip can stop it.
@@ -236,8 +270,11 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
 
   // After a reroute, keep the simulator's autopilot on the new route.
   useEffect(() => {
-    if (sim.current && state.route) sim.current.followRoute(state.route.nodeIds);
-  }, [state.route]);
+    if (sim.current && state.route) {
+      sim.current.followRoute(state.route.nodeIds);
+      sim.current.setAutopilot(state.phase === 'guiding');
+    }
+  }, [state.route]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (state.phase === 'arrived' || state.phase === 'choose_destination' || state.phase === 'choose_start') {
@@ -250,7 +287,7 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
     }
   }, [state.phase, stopPoseSources]);
 
-  // Start ARKit (or the simulator) whenever guidance begins, from the Start button or a double-tap.
+  // Start ARKit (or the simulator) whenever guidance begins.
   const prevPhase = useRef(state.phase);
   useEffect(() => {
     if (
@@ -277,64 +314,14 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
   // AR guide path for low-vision users.
   useEffect(() => {
     const a = adapter.current;
-    if (!anchored || !a || !state.route || !settings.showCamera) return;
+    if (!anchored || !a || !state.route) return;
     const pts = state.route.nodeIds
       .map((id) => controller.index.node(id))
-      .filter((n) => n.floorId === (state.pose?.floorId ?? n.floorId))
-      .map((n) => a.toSession(n.position, controller.index.floors.get(n.floorId)?.elevation ?? 0))
+      .map((n) => a.toSession(n.position, 0))
       .filter((p): p is NonNullable<typeof p> => p !== null);
     void ARNav.setGuidePath({ points: pts }).catch(() => undefined);
-  }, [state.route, state.pose?.floorId, anchored, settings.showCamera, controller]);
+  }, [state.route, anchored, controller]);
 
-  const dictate = async () => {
-    setListening(true);
-    try {
-      const { transcript } = await Speech.listen({
-        timeoutMs: 6000,
-        contextualStrings: controller.destinations.map((d) => d.label),
-      });
-      setQuery(transcript);
-      const hits = controller.findDestination(transcript);
-      if (hits.length === 1 || (hits[0] && transcript.toLowerCase().includes(hits[0].label.toLowerCase())))
-        chooseDestination(hits[0]!.id);
-      else if (hits.length > 1)
-        void say(
-          `${hits.length} matches. ${hits
-            .slice(0, 3)
-            .map((h) => nodeDisplayName(graph, h))
-            .join(', ')}.`,
-        );
-      else void say(`No place called ${transcript}.`);
-    } catch {
-      void say('Voice search is not available. Type the place name instead.');
-    } finally {
-      setListening(false);
-    }
-  };
-
-  const chooseStart = (id: string) => {
-    void cue('confirm');
-    controller.setStart(id);
-    setQuery('');
-  };
-  const chooseDestination = (id: string) => {
-    void cue('confirm');
-    controller.setDestination(id);
-    setQuery('');
-  };
-
-  const viewFloor =
-    state.pose?.floorId ??
-    (state.startId ? controller.index.node(state.startId).floorId : graph.floors[0]!.id);
-  // Offer only shortcuts this map can satisfy (the sample home has no exit, stairs or elevator).
-  const available = {
-    exit: graph.nodes.some((n) => n.poiType === 'exit' || (n.kind === 'door' && n.exterior)),
-    // A single bathroom is already in the list; "nearest" only helps when there are several.
-    bathroom: graph.nodes.filter((n) => n.poiType === 'bathroom').length > 1,
-    elevator: graph.nodes.some((n) => n.kind === 'elevator'),
-    stairs: graph.edges.some((e) => e.kind === 'stairs'),
-  };
-  const shortcuts = (['exit', 'bathroom', 'elevator'] as const).filter((k) => available[k]);
   const filtered = query.trim() ? controller.findDestination(query) : controller.destinations;
   const active = state.phase === 'guiding' || state.phase === 'paused' || state.phase === 'arrived';
   const choosingStart = state.phase === 'choose_start' || (!state.startId && state.phase !== 'preview');
@@ -342,8 +329,6 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
   if (active) {
     const dest = state.destinationId ? controller.index.nodes.get(state.destinationId) : undefined;
     const destSprite = dest ? spriteFor(dest) : null;
-    const floorChange = state.steps.find((s) => s.kind === 'floor_change');
-    const extras = [available.exit, Boolean(floorChange)].filter(Boolean).length;
     // Show what's next with a live distance; the last spoken prompt can already be stale.
     const liveInstruction = (state.phase === 'guiding' && controller.nextInstruction()) || state.lastPrompt;
     return (
@@ -351,7 +336,7 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
       <div className={cx('fixed inset-0 h-dvh flex flex-col overflow-hidden', !arVisible && 'bg-bg')}>
         <GestureSurface
           onGesture={onGesture}
-          label="Navigation. Swipe up to repeat, tap for where am I, touch and hold to pause, swipe down to end."
+          label="Navigation. Tap to hear where you are, swipe up to repeat, touch and hold to pause."
           className="flex-1 min-h-0 flex flex-col safe-top px-3 gap-2"
         >
           <div className="flex items-center justify-between gap-2 pt-1">
@@ -389,7 +374,7 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
               ) : (
                 <FloorPlan
                   graph={graph}
-                  floorId={viewFloor}
+                  floorId={state.pose?.floorId ?? graph.floors[0]!.id}
                   route={state.route?.nodeIds}
                   pose={state.pose}
                   className="absolute inset-0 w-full h-full"
@@ -413,19 +398,16 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
         <nav
           aria-label="Navigation controls"
           data-no-gesture
-          className={cx(
-            'grid gap-2 px-3 pt-2 pb-1 safe-bottom bg-bg border-t-[3px] border-line',
-            extras > 0 ? 'grid-cols-3' : 'grid-cols-4',
-          )}
+          className="grid grid-cols-4 gap-2 px-3 pt-2 pb-1 safe-bottom bg-bg border-t-[3px] border-line"
         >
+          <Button className="px-2" variant="primary" disabled={listening} onClick={() => void speakCommand()}>
+            {listening ? '…' : 'Speak'}
+          </Button>
           <Button className="px-2" onClick={() => voice.repeat()}>
             Repeat
           </Button>
-          <Button className="px-2" onClick={() => controller.gesture('tap')}>
-            Where?
-          </Button>
           {state.phase === 'arrived' ? (
-            <Button className="px-2" variant="primary" onClick={() => controller.gesture('swipeBack')}>
+            <Button className="px-2" onClick={() => controller.gesture('swipeBack')}>
               New trip
             </Button>
           ) : (
@@ -436,21 +418,6 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
               {state.phase === 'paused' ? 'Resume' : 'Pause'}
             </Button>
           )}
-          {available.exit && (
-            <Button className="px-2" onClick={() => controller.routeToNearest('exit')}>
-              Exit
-            </Button>
-          )}
-          {floorChange && (
-            <Button
-              className="px-2"
-              onClick={() =>
-                onGesture(floorChange.floorChange!.direction === 'up' ? 'twoFingerUp' : 'twoFingerDown')
-              }
-            >
-              New floor
-            </Button>
-          )}
           <Button className="px-2" variant="danger" onClick={() => controller.end()}>
             End
           </Button>
@@ -459,117 +426,118 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
     );
   }
 
+  if (state.phase === 'preview' && state.route) {
+    return (
+      <Screen title="Your route" back="/">
+        <Button
+          variant="primary"
+          large
+          block
+          className="min-h-24 text-2xl"
+          onClick={() => controller.begin()}
+        >
+          Start
+        </Button>
+        <Card className="flex flex-col gap-3">
+          <p className="text-lg">
+            From <strong>{controller.label(state.startId)}</strong> to{' '}
+            <strong>{controller.label(state.destinationId)}</strong>,{' '}
+            {formatDistance(state.route.length, settings.units, settings.stepLength)}.
+          </p>
+          <ol className="list-decimal pl-6 flex flex-col gap-1 text-lg">
+            {state.steps.map((s, i) => (
+              <li key={i}>
+                {stepText(
+                  s,
+                  { unit: settings.units, stepLength: settings.stepLength },
+                  controller.label(state.destinationId),
+                )}
+              </li>
+            ))}
+          </ol>
+          <Button onClick={() => voice.repeat()}>Hear the route again</Button>
+        </Card>
+        <FloorPlan
+          graph={graph}
+          floorId={controller.index.node(state.startId!).floorId}
+          route={state.route.nodeIds}
+          className="w-full aspect-[4/3] border-[3px] border-line"
+          simple
+        />
+        <Button block onClick={() => controller.gesture('swipeBack')}>
+          Choose a different place
+        </Button>
+      </Screen>
+    );
+  }
+
   return (
-    <Screen
-      title={choosingStart ? 'Where are you?' : state.phase === 'preview' ? 'Your route' : 'Where to?'}
-      back={`/maps/${mapId}`}
-    >
-      {state.phase === 'preview' && state.route ? (
-        <>
-          <FloorPlan
-            graph={graph}
-            floorId={controller.index.node(state.startId!).floorId}
-            route={state.route.nodeIds}
-            className="w-full aspect-[4/3] border-[3px] border-line"
-            simple
-          />
-          <Card className="flex flex-col gap-3">
-            <p className="text-lg">
-              From <strong>{controller.label(state.startId)}</strong> to{' '}
-              <strong>{controller.label(state.destinationId)}</strong>,{' '}
-              {formatDistance(state.route.length, settings.units, settings.stepLength)}.
-            </p>
-            <ol className="list-decimal pl-6 flex flex-col gap-1">
-              {state.steps.map((s, i) => (
-                <li key={i}>
-                  {stepText(
-                    s,
-                    { unit: settings.units, stepLength: settings.stepLength },
-                    controller.label(state.destinationId),
-                  )}
-                </li>
-              ))}
-            </ol>
-            {available.stairs && (
-              <Toggle
-                label="Avoid stairs"
-                checked={settings.avoidStairs}
-                onChange={(v) => {
-                  settings.set({ avoidStairs: v });
-                  controller.updateOptions(navOptions({ ...settings, avoidStairs: v }));
-                  controller.setDestination(state.destinationId!);
-                }}
-              />
-            )}
-          </Card>
-          <Button variant="primary" large block onClick={() => controller.begin()}>
-            Start
-          </Button>
-          <Button block onClick={() => controller.gesture('swipeBack')}>
-            Change destination
-          </Button>
-        </>
+    <Screen title={choosingStart ? 'Where are you?' : 'Where to?'} back="/">
+      {isSample && <p className="text-muted">Using the sample home. Add a room to navigate your own.</p>}
+      {state.error && <ErrorBox error={state.error} />}
+      {choosingStart ? (
+        <MicButton
+          label="Say where you are"
+          prompt="Where are you? Say the room you're in."
+          contextualStrings={places.map((p) => p.label)}
+          onHeard={(heard) => onPlaceHeard(heard, chooseStart)}
+        />
       ) : (
         <>
-          {state.error && <ErrorBox error={state.error} />}
-          {state.startId && !choosingStart && (
-            <p className="text-muted">
-              Starting from <strong>{controller.label(state.startId)}</strong>.{' '}
-              <button
-                type="button"
-                className="underline text-accent min-h-12"
-                onClick={() => controller.clearStart()}
-              >
-                Change
-              </button>
-            </p>
-          )}
-          <div className="flex gap-2 items-end">
-            <Field
-              label={choosingStart ? 'Search for where you are' : 'Search for a place'}
-              type="search"
-              className="flex-1"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              autoComplete="off"
-            />
-            {!choosingStart && (
-              <Button onClick={() => void dictate()} disabled={listening} aria-label="Search by voice">
-                {listening ? 'Listening…' : 'Speak'}
-              </Button>
-            )}
-          </div>
-          {!choosingStart && shortcuts.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
-              {shortcuts.map((k) => (
-                <Button key={k} onClick={() => controller.routeToNearest(k)}>
-                  {{ exit: 'Nearest exit', bathroom: 'Nearest bathroom', elevator: 'Elevator' }[k]}
-                </Button>
-              ))}
-            </div>
-          )}
-          <ul className="flex flex-col gap-2" aria-label={choosingStart ? 'Starting points' : 'Destinations'}>
-            {filtered
-              .filter((d) => choosingStart || d.id !== state.startId)
-              .map((d) => (
-                <li key={d.id}>
-                  <Button
-                    block
-                    className="justify-start text-left min-h-16"
-                    onClick={() => (choosingStart ? chooseStart(d.id) : chooseDestination(d.id))}
-                  >
-                    {(() => {
-                      const sprite = spriteFor(d);
-                      return sprite ? <PixelArt name={sprite} size={36} /> : null;
-                    })()}
-                    {nodeDisplayName(graph, d)}
-                  </Button>
-                </li>
-              ))}
-          </ul>
-          {filtered.length === 0 && <p className="text-muted">No matching places.</p>}
+          <p className="text-lg">
+            Starting from <strong>{controller.label(state.startId)}</strong>.{' '}
+            <button
+              type="button"
+              className="underline text-accent min-h-12"
+              onClick={() => controller.clearStart()}
+            >
+              Change
+            </button>
+          </p>
+          <MicButton
+            label="Say where to go"
+            prompt="Where do you want to go?"
+            contextualStrings={places.map((p) => p.label)}
+            onHeard={(heard) => onPlaceHeard(heard, chooseDestination)}
+          />
         </>
       )}
+
+      <h2 className="text-xl font-bold mt-2">
+        {choosingStart ? 'Or pick where you are' : 'Or pick a place'}
+      </h2>
+      {controller.destinations.length > 6 && (
+        <Field
+          label="Find a room"
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          autoComplete="off"
+        />
+      )}
+      <ul
+        className="flex flex-col gap-2"
+        aria-label={choosingStart ? 'Rooms you can start from' : 'Places to go'}
+      >
+        {filtered
+          .filter((d) => choosingStart || d.id !== state.startId)
+          .map((d) => {
+            const sprite = spriteFor(d);
+            return (
+              <li key={d.id}>
+                <Button
+                  block
+                  className="justify-start text-left min-h-16 text-lg"
+                  onClick={() => (choosingStart ? chooseStart(d.id) : chooseDestination(d.id))}
+                >
+                  {sprite && <PixelArt name={sprite} size={36} />}
+                  {nodeDisplayName(graph, d)}
+                </Button>
+              </li>
+            );
+          })}
+      </ul>
+      {filtered.length === 0 && <p className="text-muted">No rooms match.</p>}
     </Screen>
   );
 }

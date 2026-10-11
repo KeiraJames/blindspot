@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useSettings } from '../state/settings';
 import { unlockAudio } from '../lib/voice/earcons';
 import { Speech } from '../plugins/speech';
+import { announce, voice } from '../lib/feedback';
 import { PixelArt } from './PixelArt';
 import { Button } from './ui';
 
@@ -14,7 +15,12 @@ export function SafetyNotice() {
   const set = useSettings((s) => s.set);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!ack) ref.current?.focus();
+    if (ack) return;
+    ref.current?.focus();
+    // Read it aloud too: the person may not be using VoiceOver.
+    void announce(
+      `Before you start. ${SAFETY_TEXT} Press the button at the bottom of the screen, I understand, to continue.`,
+    );
   }, [ack]);
   if (ack) return null;
   return (
@@ -35,13 +41,7 @@ export function SafetyNotice() {
         <p id="safety-body" className="text-lg">
           {SAFETY_TEXT}
         </p>
-        <ul className="list-disc pl-6 text-muted">
-          <li>
-            Scanning needs an iPhone or iPad Pro with LiDAR. Any iPhone on iOS 17 can navigate maps that
-            others scanned.
-          </li>
-          <li>Camera and LiDAR data stay on your phone. A scan is uploaded only when you save it.</li>
-        </ul>
+        <p className="text-muted">Everything you scan stays on this phone.</p>
         <Button
           variant="primary"
           large
@@ -49,6 +49,7 @@ export function SafetyNotice() {
           onClick={() => {
             unlockAudio();
             void Speech.configureAudioSession();
+            voice.stop();
             set({ safetyAcknowledged: true });
           }}
         >

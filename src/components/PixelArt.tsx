@@ -30,6 +30,19 @@ export const SPRITES = {
     '.KppppKYKpK.',
     '.KKKKKKKKKK.',
   ],
+  mic: [
+    '...KKKK...',
+    '..KRRRRK..',
+    '..KRWRRK..',
+    '..KRRRRK..',
+    '..KRRRRK..',
+    '.K.KRRK.K.',
+    '.K..KK..K.',
+    '..K....K..',
+    '...KKKK...',
+    '....KK....',
+    '..KKKKKK..',
+  ],
   // "You are here", pointing the way you face.
   arrow: [
     '....K....',

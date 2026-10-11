@@ -4,52 +4,32 @@ import type { DistanceUnit } from '../lib/nav/units';
 import { preferencesStorage } from './storage';
 
 export interface Settings {
-  /** User acknowledged the safety notice (PathSense complements a cane or guide dog). */
+  /** User heard and accepted the safety notice (complements a cane or guide dog). */
   safetyAcknowledged: boolean;
-  voiceEnabled: boolean;
-  premiumVoice: boolean;
+  /** 0.6 (slow) … 1.6 (fast). */
   speechRate: number;
-  hapticsEnabled: boolean;
-  hapticIntensity: number;
-  earconsEnabled: boolean;
-  earconVolume: number;
+  vibration: boolean;
+  /** Short sounds that pair with each vibration. */
+  sounds: boolean;
   units: DistanceUnit;
+  /** Step length in meters, used when units = steps. */
   stepLength: number;
-  avoidStairs: boolean;
-  preferElevator: boolean;
-  /** Show the AR camera feed and guide path (low vision). Off = black screen. */
-  showCamera: boolean;
-  /** Steady straight-ahead tick while on course. */
-  courseTicks: boolean;
-  hazardAlerts: boolean;
-  /** Detail level of spoken prompts. */
-  verbosity: 'brief' | 'detailed';
+  /** Speak a warning when the phone detects an obstacle or person ahead. */
+  obstacleAlerts: boolean;
   highContrast: boolean;
-  /** Upload scans only on Wi-Fi. */
-  wifiOnlyUploads: boolean;
   set: (patch: Partial<Omit<Settings, 'set' | 'reset'>>) => void;
   reset: () => void;
 }
 
 const DEFAULTS = {
   safetyAcknowledged: false,
-  voiceEnabled: true,
-  premiumVoice: true,
   speechRate: 1,
-  hapticsEnabled: true,
-  hapticIntensity: 1,
-  earconsEnabled: true,
-  earconVolume: 0.6,
+  vibration: true,
+  sounds: true,
   units: 'meters' as DistanceUnit,
   stepLength: 0.7,
-  avoidStairs: false,
-  preferElevator: false,
-  showCamera: true,
-  courseTicks: true,
-  hazardAlerts: true,
-  verbosity: 'detailed' as const,
+  obstacleAlerts: true,
   highContrast: false,
-  wifiOnlyUploads: true,
 };
 
 export const useSettings = create<Settings>()(
@@ -59,6 +39,21 @@ export const useSettings = create<Settings>()(
       set: (patch) => set(patch),
       reset: () => set({ ...DEFAULTS, safetyAcknowledged: true }),
     }),
-    { name: 'pathsense.settings', storage: createJSONStorage(() => preferencesStorage), version: 1 },
+    {
+      name: 'pathsense.settings',
+      storage: createJSONStorage(() => preferencesStorage),
+      version: 2,
+      // Earlier versions had many more options; keep only what still exists.
+      migrate: (old) => {
+        const o = (old ?? {}) as Record<string, unknown>;
+        return {
+          ...DEFAULTS,
+          safetyAcknowledged: Boolean(o.safetyAcknowledged),
+          speechRate: typeof o.speechRate === 'number' ? o.speechRate : DEFAULTS.speechRate,
+          units: (o.units as DistanceUnit) ?? DEFAULTS.units,
+          highContrast: Boolean(o.highContrast),
+        } as Settings;
+      },
+    },
   ),
 );
