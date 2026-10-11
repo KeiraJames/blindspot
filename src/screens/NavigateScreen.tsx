@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { FloorPlan } from '../components/FloorPlan';
 import { GestureSurface } from '../components/GestureSurface';
+import { NavMap } from '../components/NavMap';
 import { PixelArt, spriteFor } from '../components/PixelArt';
 import { Screen } from '../components/Screen';
 import { Button, Card, cx, ErrorBox, Field, Spinner, Toggle } from '../components/ui';
@@ -79,6 +80,7 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
   const [simInstance, setSimInstance] = useState<WalkSimulator | null>(null);
   const [anchored, setAnchored] = useState(false);
   const [arVisible, setArVisible] = useState(false);
+  const [mapMode, setMapMode] = useState<'follow' | 'overview'>('follow');
   const sim = useRef<WalkSimulator | null>(null);
   const adapter = useRef<PoseAdapter | null>(null);
   const lastAR = useRef<ARPose | null>(null);
@@ -212,10 +214,25 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
       },
     );
     s.followRoute(controller.state.route!.nodeIds);
+    // Walk automatically so the demo moves without extra taps; the strip can stop it.
+    s.setAutopilot(true);
     sim.current = s;
     s.start();
     setSimInstance(s);
   };
+
+  // Pausing guidance also stops the simulated walker; resuming starts it again.
+  const lastPhase = useRef(state.phase);
+  useEffect(() => {
+    const was = lastPhase.current;
+    lastPhase.current = state.phase;
+    const s = sim.current;
+    if (!s) return;
+    if (state.phase === 'paused' && was === 'guiding') s.setAutopilot(false);
+    else if (state.phase === 'guiding' && was === 'paused') s.setAutopilot(true);
+    else return;
+    force((n) => n + 1);
+  }, [state.phase]);
 
   // After a reroute, keep the simulator's autopilot on the new route.
   useEffect(() => {
@@ -323,45 +340,71 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
   const choosingStart = state.phase === 'choose_start' || (!state.startId && state.phase !== 'preview');
 
   if (active) {
+    const dest = state.destinationId ? controller.index.nodes.get(state.destinationId) : undefined;
+    const destSprite = dest ? spriteFor(dest) : null;
+    const floorChange = state.steps.find((s) => s.kind === 'floor_change');
+    const extras = [available.exit, Boolean(floorChange)].filter(Boolean).length;
+    // Show what's next with a live distance; the last spoken prompt can already be stale.
+    const liveInstruction = (state.phase === 'guiding' && controller.nextInstruction()) || state.lastPrompt;
     return (
-      <div className={cx('fixed inset-0 flex flex-col', !arVisible && 'bg-bg')}>
+      // Locked to the screen height: the map absorbs whatever space is left, nothing scrolls.
+      <div className={cx('fixed inset-0 h-dvh flex flex-col overflow-hidden', !arVisible && 'bg-bg')}>
         <GestureSurface
           onGesture={onGesture}
           label="Navigation. Swipe up to repeat, tap for where am I, touch and hold to pause, swipe down to end."
-          className="flex-1 flex flex-col safe-top px-4 gap-3"
+          className="flex-1 min-h-0 flex flex-col safe-top px-3 gap-2"
         >
-          <div className="flex items-start justify-between gap-2 pt-2">
-            <p className="text-muted font-semibold">
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <p className="font-pixel font-bold text-lg">
               {state.phase === 'arrived'
-                ? 'Arrived'
+                ? 'Arrived!'
                 : state.phase === 'paused'
                   ? 'Paused'
                   : `${formatDistance(state.remaining, settings.units, settings.stepLength)} to go`}
             </p>
-            <p className="text-muted text-right flex items-center gap-2">
-              {(() => {
-                const dest = state.destinationId
-                  ? controller.index.nodes.get(state.destinationId)
-                  : undefined;
-                const sprite = dest ? spriteFor(dest) : null;
-                return sprite ? <PixelArt name={sprite} size={28} /> : null;
-              })()}
-              {controller.label(state.destinationId)}
+            <p className="text-muted flex items-center gap-2 min-w-0">
+              {destSprite && <PixelArt name={destSprite} size={24} />}
+              <span className="truncate">{controller.label(state.destinationId)}</span>
             </p>
           </div>
-          <p aria-hidden className="pixel-frame text-3xl font-bold leading-tight bg-surface p-3">
-            {state.lastPrompt}
+          <p
+            aria-hidden
+            className="pixel-frame text-xl sm:text-2xl font-bold leading-snug bg-surface px-3 py-2"
+          >
+            {liveInstruction}
           </p>
-          {arError && <p className="text-warn">AR unavailable ({arError}). Using the walk simulator.</p>}
+          {arError && (
+            <p className="text-warn text-sm">AR unavailable ({arError}). Using the walk simulator.</p>
+          )}
           {!arVisible && (
-            <FloorPlan
-              graph={graph}
-              floorId={viewFloor}
-              route={state.route?.nodeIds}
-              pose={state.pose}
-              className="w-full flex-1 min-h-40 rounded-2xl"
-              showLabels
-            />
+            <div className="relative flex-1 min-h-0 border-[3px] border-line overflow-hidden mb-2">
+              {mapMode === 'follow' ? (
+                <NavMap
+                  graph={graph}
+                  route={state.route?.nodeIds}
+                  pose={state.pose}
+                  destinationId={state.destinationId}
+                  className="absolute inset-0 w-full h-full"
+                />
+              ) : (
+                <FloorPlan
+                  graph={graph}
+                  floorId={viewFloor}
+                  route={state.route?.nodeIds}
+                  pose={state.pose}
+                  className="absolute inset-0 w-full h-full"
+                  simple
+                />
+              )}
+              <button
+                type="button"
+                data-no-gesture
+                onClick={() => setMapMode((m) => (m === 'follow' ? 'overview' : 'follow'))}
+                className="pixel-frame pixel-press absolute left-2 bottom-2 bg-surface px-3 min-h-11 text-sm font-semibold"
+              >
+                {mapMode === 'follow' ? 'Whole route' : 'Follow me'}
+              </button>
+            </div>
           )}
         </GestureSurface>
 
@@ -370,46 +413,45 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
         <nav
           aria-label="Navigation controls"
           data-no-gesture
-          className="grid grid-cols-3 gap-2 p-3 safe-bottom bg-bg/90 border-t border-line"
+          className={cx(
+            'grid gap-2 px-3 pt-2 pb-1 safe-bottom bg-bg border-t-[3px] border-line',
+            extras > 0 ? 'grid-cols-3' : 'grid-cols-4',
+          )}
         >
-          <Button large onClick={() => voice.repeat()}>
+          <Button className="px-2" onClick={() => voice.repeat()}>
             Repeat
           </Button>
-          <Button large onClick={() => controller.gesture('tap')}>
-            Where am I
+          <Button className="px-2" onClick={() => controller.gesture('tap')}>
+            Where?
           </Button>
           {state.phase === 'arrived' ? (
-            <Button large variant="primary" onClick={() => controller.gesture('swipeBack')}>
+            <Button className="px-2" variant="primary" onClick={() => controller.gesture('swipeBack')}>
               New trip
             </Button>
           ) : (
             <Button
-              large
+              className="px-2"
               onClick={() => (state.phase === 'paused' ? controller.resume() : controller.pause())}
             >
               {state.phase === 'paused' ? 'Resume' : 'Pause'}
             </Button>
           )}
           {available.exit && (
-            <Button large onClick={() => controller.routeToNearest('exit')}>
-              Nearest exit
+            <Button className="px-2" onClick={() => controller.routeToNearest('exit')}>
+              Exit
             </Button>
           )}
-          {state.steps.some((s) => s.kind === 'floor_change') && (
+          {floorChange && (
             <Button
-              large
+              className="px-2"
               onClick={() =>
-                onGesture(
-                  state.steps.find((s) => s.kind === 'floor_change')!.floorChange!.direction === 'up'
-                    ? 'twoFingerUp'
-                    : 'twoFingerDown',
-                )
+                onGesture(floorChange.floorChange!.direction === 'up' ? 'twoFingerUp' : 'twoFingerDown')
               }
             >
-              I changed floor
+              New floor
             </Button>
           )}
-          <Button large variant="danger" onClick={() => controller.end()} className="col-start-3">
+          <Button className="px-2" variant="danger" onClick={() => controller.end()}>
             End
           </Button>
         </nav>
@@ -424,6 +466,13 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
     >
       {state.phase === 'preview' && state.route ? (
         <>
+          <FloorPlan
+            graph={graph}
+            floorId={controller.index.node(state.startId!).floorId}
+            route={state.route.nodeIds}
+            className="w-full aspect-[4/3] border-[3px] border-line"
+            simple
+          />
           <Card className="flex flex-col gap-3">
             <p className="text-lg">
               From <strong>{controller.label(state.startId)}</strong> to{' '}
@@ -459,12 +508,6 @@ function Navigator({ mapId, graph }: { mapId: string; graph: MapGraph }) {
           <Button block onClick={() => controller.gesture('swipeBack')}>
             Change destination
           </Button>
-          <FloorPlan
-            graph={graph}
-            floorId={controller.index.node(state.startId!).floorId}
-            route={state.route.nodeIds}
-            className="w-full aspect-square rounded-2xl"
-          />
         </>
       ) : (
         <>
@@ -548,31 +591,33 @@ function SimPanel({ sim, onChange }: { sim: WalkSimulator; onChange: () => void 
     else sim.setWander(!sim.wander);
     onChange();
   };
+  const small = 'flex-1 px-2 min-h-11 text-sm whitespace-nowrap';
   return (
     <section
       data-no-gesture
-      aria-label="Walk simulator"
-      className="mx-3 mb-2 border-[3px] border-warn p-2 bg-surface flex flex-wrap gap-2 items-center"
+      aria-label="Walk simulator. ARKit isn't available here."
+      className="mx-3 mb-2 border-[3px] border-dashed border-warn bg-surface px-2 py-1.5 flex items-center gap-2"
     >
-      <span className="text-warn text-sm font-semibold w-full">
-        Walk simulator: ARKit isn't available here.{' '}
-        <span className="hidden md:inline">Arrow keys also move.</span>
+      <span className="font-pixel text-warn text-xs leading-tight shrink-0" aria-hidden>
+        SIM
       </span>
-      <Button onClick={() => toggle('autopilot')} aria-pressed={sim.autopilot}>
-        {sim.autopilot ? 'Stop walking' : 'Auto-walk'}
+      <Button
+        className={small}
+        variant={sim.autopilot ? 'primary' : 'secondary'}
+        onClick={() => toggle('autopilot')}
+        aria-pressed={sim.autopilot}
+      >
+        {sim.autopilot ? 'Walking' : 'Walk'}
       </Button>
-      <Button onClick={() => toggle('wander')} aria-pressed={sim.wander}>
-        {sim.wander ? 'Return' : 'Wander off'}
+      <Button className={small} onClick={() => toggle('wander')} aria-pressed={sim.wander}>
+        {sim.wander ? 'Go back' : 'Wander'}
       </Button>
-      <Button onClick={() => sim.step(1)}>Step</Button>
-      <Button onClick={() => sim.turn(Math.PI / 4)} aria-label="Turn left 45 degrees">
-        ↺
-      </Button>
-      <Button onClick={() => sim.turn(-Math.PI / 4)} aria-label="Turn right 45 degrees">
-        ↻
-      </Button>
-      <Button onClick={() => sim.setTracking(sim.pose.tracking === 'lost' ? 'normal' : 'lost')}>
-        {sim.pose.tracking === 'lost' ? 'Restore tracking' : 'Lose tracking'}
+      <Button
+        className={small}
+        onClick={() => sim.setTracking(sim.pose.tracking === 'lost' ? 'normal' : 'lost')}
+        aria-pressed={sim.pose.tracking === 'lost'}
+      >
+        {sim.pose.tracking === 'lost' ? 'Fix AR' : 'Lose AR'}
       </Button>
     </section>
   );

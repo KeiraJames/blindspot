@@ -24,6 +24,8 @@ export interface FloorPlanProps {
   /** Accessible description; set when the plan conveys information not available as text. */
   label?: string;
   showLabels?: boolean;
+  /** Navigator overview: hide hallway and door dots, fade edges off the route. */
+  simple?: boolean;
   padding?: number;
 }
 
@@ -52,6 +54,7 @@ export function FloorPlan({
   className,
   label,
   showLabels = true,
+  simple = false,
   padding = 3,
 }: FloorPlanProps) {
   const nodes = useMemo(() => graph.nodes.filter((n) => n.floorId === floorId), [graph, floorId]);
@@ -177,8 +180,8 @@ export function FloorPlan({
             y1={-a.position.y}
             x2={b.position.x}
             y2={-b.position.y}
-            stroke={onRoute ? 'var(--accent)' : 'var(--muted)'}
-            strokeWidth={onRoute ? 0.35 : 0.1}
+            stroke={onRoute ? 'var(--accent)' : simple ? 'var(--grid)' : 'var(--muted)'}
+            strokeWidth={onRoute ? 0.35 : simple ? 0.08 : 0.1}
             strokeDasharray={e.kind === 'door' ? '0.25 0.15' : undefined}
             strokeLinecap="round"
           />
@@ -191,6 +194,9 @@ export function FloorPlan({
         const sprite = n.kind === 'room' || n.kind === 'poi' ? spriteFor(n) : null;
         // 12×12 sprite, about 1.6 m wide, centered on the place.
         const px = (1.6 * Math.max(1, scale * 0.8)) / 12;
+        const dot =
+          !simple || selected || highlighted || (!sprite && n.kind !== 'junction' && n.kind !== 'door');
+        if (simple && !dot && !sprite) return null;
         return (
           <g
             key={n.id}
@@ -200,23 +206,29 @@ export function FloorPlan({
             style={{ cursor: onNodePointerDown ? 'pointer' : undefined }}
           >
             <circle cx={n.position.x} cy={-n.position.y} r={r * 2.2} fill="transparent" />
-            <circle
-              cx={n.position.x}
-              cy={-n.position.y}
-              r={r}
-              fill={KIND_FILL[n.kind]}
-              stroke={selected ? 'var(--fg)' : highlighted ? 'var(--danger)' : 'none'}
-              strokeWidth={selected || highlighted ? 0.15 * Math.max(1, scale) : 0}
-            />
+            {dot && (
+              <circle
+                cx={n.position.x}
+                cy={-n.position.y}
+                r={r}
+                fill={KIND_FILL[n.kind]}
+                stroke={selected ? 'var(--fg)' : highlighted ? 'var(--danger)' : 'none'}
+                strokeWidth={selected || highlighted ? 0.15 * Math.max(1, scale) : 0}
+              />
+            )}
             {sprite && (
               <SpriteGroup name={sprite} x={n.position.x - 6 * px} y={-n.position.y - 6 * px} pixel={px} />
             )}
             {showLabels && ((n.kind !== 'junction' && n.kind !== 'door') || selected || highlighted) && (
               <text
-                x={n.position.x + (sprite ? 6 * px : r) + 0.15}
-                y={-n.position.y + r * 0.4}
+                x={simple ? n.position.x : n.position.x + (sprite ? 6 * px : r) + 0.15}
+                y={simple ? -n.position.y + (sprite ? 6 * px : r) + scale * 0.9 : -n.position.y + r * 0.4}
+                textAnchor={simple ? 'middle' : undefined}
                 fontSize={scale * 0.9}
                 fill="var(--fg)"
+                stroke="var(--surface)"
+                strokeWidth={scale * 0.15}
+                paintOrder="stroke"
                 fontFamily="var(--font-pixel)"
                 style={{ pointerEvents: 'none' }}
               >
@@ -227,16 +239,22 @@ export function FloorPlan({
         );
       })}
       {pose && (
+        // Pixel arrow pointing the way the walker faces (sprite points up at rotation 0).
         <g
-          transform={`translate(${pose.position.x} ${-pose.position.y}) rotate(${(-pose.heading * 180) / Math.PI})`}
+          transform={`translate(${pose.position.x} ${-pose.position.y}) rotate(${((Math.PI / 2 - pose.heading) * 180) / Math.PI})`}
         >
           <circle
-            r={0.6 * Math.max(1, scale * 0.8)}
-            fill="var(--danger)"
-            stroke="var(--fg)"
-            strokeWidth={0.1}
+            r={0.9 * Math.max(1, scale * 0.8)}
+            fill="var(--surface)"
+            stroke="var(--line)"
+            strokeWidth={0.08}
           />
-          <path d={`M 0 0 L ${1.6 * Math.max(1, scale * 0.8)} 0`} stroke="var(--fg)" strokeWidth={0.2} />
+          <SpriteGroup
+            name="arrow"
+            x={-0.65 * Math.max(1, scale * 0.8)}
+            y={-0.65 * Math.max(1, scale * 0.8)}
+            pixel={(1.3 * Math.max(1, scale * 0.8)) / 9}
+          />
         </g>
       )}
     </svg>

@@ -30,6 +30,18 @@ export const SPRITES = {
     '.KppppKYKpK.',
     '.KKKKKKKKKK.',
   ],
+  // "You are here", pointing the way you face.
+  arrow: [
+    '....K....',
+    '...KRK...',
+    '..KRRRK..',
+    '.KRRRRRK.',
+    'KRRWRRRRK',
+    'KKKRRRKKK',
+    '..KRRRK..',
+    '..KRRRK..',
+    '..KKKKK..',
+  ],
   kitchen: [
     '...p..p..p..',
     '....p..p..p.',
